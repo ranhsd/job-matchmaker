@@ -4,7 +4,7 @@ import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
 
 <template>
   <header class="sticky top-0 z-30 bg-white shadow-header">
-    <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 md:h-[72px] md:px-8">
+    <div class="mx-auto flex h-16 max-w-[1190px] items-center justify-between gap-4 px-4 md:h-[84px]">
       <a href="/" class="flex min-w-0 items-center gap-2.5 md:gap-3" aria-label="השדכן החכם שלי – לדף הבית">
         <img src="/favicon.svg?v=3" alt="" class="size-9 shrink-0 md:size-10" />
         <div class="min-w-0 leading-tight">

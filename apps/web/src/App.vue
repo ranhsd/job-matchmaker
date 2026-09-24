@@ -7,8 +7,10 @@ import AppFooter from "./components/AppFooter.vue";
 import AppHeader from "./components/AppHeader.vue";
 import CvUploader from "./components/CvUploader.vue";
 import HeroSection from "./components/HeroSection.vue";
+import HotJobsSection from "./components/HotJobsSection.vue";
 import MatchOptions from "./components/MatchOptions.vue";
 import MatchProgress from "./components/MatchProgress.vue";
+import OfficesSection from "./components/OfficesSection.vue";
 import PositionDialog from "./components/PositionDialog.vue";
 import ProfileCard from "./components/ProfileCard.vue";
 import ResultsTable from "./components/ResultsTable.vue";
@@ -24,7 +26,7 @@ const resultsAnchor = ref<HTMLElement>();
 const { status, stage, stageMessage, profile, matches, totalPositions, error, run, reset } = useMatch();
 
 const areas = computed(() => [...new Set((positions.value ?? []).map((p) => p.area).filter(Boolean))]);
-const hotPositions = computed(() => (positions.value ?? []).filter((p) => p.isHot).slice(0, 6));
+const hotPositions = computed(() => (positions.value ?? []).filter((p) => p.isHot));
 const offices = computed(() =>
   positions.value ? new Set(positions.value.map((p) => p.officeName)).size : null,
 );
@@ -74,12 +76,13 @@ const HOW_IT_WORKS = [
         v-model="filters"
         :open-positions="positions ? positions.length : null"
         :offices="offices"
+        :hot-count="positions ? hotPositions.length : null"
         :areas="areas"
-        :hot-positions="hotPositions"
-        :positions-loaded="positions !== null"
       />
 
-      <div class="relative mx-auto max-w-6xl space-y-8 bg-[#f7f9fc] px-4 pb-8 md:px-8">
+      <HotJobsSection v-model="filters" :hot-positions="hotPositions" :loaded="positions !== null" />
+
+      <div class="mx-auto max-w-[1190px] space-y-8 px-4 py-10 md:py-14">
         <section id="upload" class="card scroll-mt-24 p-6 md:p-8" aria-labelledby="upload-title">
           <div class="grid gap-8 lg:grid-cols-5">
             <div class="lg:col-span-3">
@@ -138,6 +141,8 @@ const HOW_IT_WORKS = [
           </ol>
         </section>
       </div>
+
+      <OfficesSection v-if="status === 'idle'" :positions="positions ?? []" />
     </main>
 
     <AppFooter />
