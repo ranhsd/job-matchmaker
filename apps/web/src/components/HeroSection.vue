@@ -40,7 +40,7 @@ function search(event: Event) {
     />
     <div
       aria-hidden="true"
-      class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_58%_72%_at_50%_46%,rgba(255,255,255,0.82)_0%,rgba(255,255,255,0.38)_36%,rgba(255,255,255,0)_68%)]"
+      class="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0)_0%,rgba(255,255,255,0.14)_14%,rgba(255,255,255,0.34)_28%,rgba(246,248,252,0.55)_42%,rgba(244,246,249,0.72)_56%,rgba(244,246,249,0.84)_72%,rgba(250,251,252,0.93)_100%)]"
     />
 
     <div class="relative mx-auto flex min-h-[34rem] max-w-6xl flex-col px-4 pb-8 pt-8 md:min-h-[40rem] md:px-8 md:pt-14">
