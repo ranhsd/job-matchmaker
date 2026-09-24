@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+/* Design tokens taken from the Civil Service recruitment site (merkava.mrp.gov.il/giusp) */
+@theme {
+  --font-sans: "Rubik", "Segoe UI", Tahoma, Arial, sans-serif;
+
+  --color-primary-50: #f4f8fd;
+  --color-primary-100: #eef6ff;
+  --color-primary-200: #d5e4f5;
+  --color-primary-300: #8ea8cc;
+  --color-primary-400: #5a7496;
+  --color-primary-500: #426a9a;
+  --color-primary-600: #1f4a7d;
+  --color-primary-700: #12385f;
+  --color-primary-800: #0c3058;
+  --color-primary-900: #0c2e4b;
+  --color-primary-950: #001a34;
+
+  --color-accent-50: #e8f3fd;
+  --color-accent-500: #0574d6;
+  --color-accent-600: #005cba;
+
+  --color-highlight-50: #fdeef4;
+  --color-highlight-100: #fbd9e7;
+  --color-highlight-300: #f8b7d5;
+  --color-highlight-500: #ea4a88;
+  --color-highlight-600: #e01a66;
+
+  --color-sky-soft: #7ed8f3;
+  --color-surface: #eef2fb;
+
+  --radius-gov: 4px;
+  --shadow-header: 0 0 3px 0 rgb(0 0 0 / 0.16);
+  --shadow-card: 0 2px 10px 0 rgb(12 46 75 / 0.08);
+}
+
+@layer base {
+  html {
+    @apply bg-primary-50 text-black/85 antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent-500;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-gov bg-primary-900 px-6 py-3 text-[15px] font-medium text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-primary-300;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-gov border border-primary-900 bg-white px-5 py-2.5 text-[15px] font-medium text-primary-900 transition hover:bg-primary-100;
+  }
+
+  .card {
+    @apply rounded-gov bg-white shadow-card;
+  }
+
+  .chip {
+    @apply inline-flex items-center rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-medium text-primary-800;
+  }
+
+  .section-title {
+    @apply text-2xl font-extrabold text-primary-800 md:text-[35px] md:leading-tight;
+  }
+}

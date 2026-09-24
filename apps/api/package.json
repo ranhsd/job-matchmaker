@@ -1,0 +1,25 @@
+{
+  "name": "@sigma/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/server.ts",
+    "start": "tsx --env-file-if-exists=.env src/server.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^4.0.79",
+    "@hono/node-server": "^2.1.1",
+    "ai": "^7.0.113",
+    "hono": "^4.13.9",
+    "mammoth": "^1.12.3",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@sigma/shared": "workspace:*",
+    "@types/node": "^22.20.4",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3"
+  }
+}
