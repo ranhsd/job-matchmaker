@@ -24,6 +24,7 @@ const resultsAnchor = ref<HTMLElement>();
 const { status, stage, stageMessage, profile, matches, totalPositions, error, run, reset } = useMatch();
 
 const areas = computed(() => [...new Set((positions.value ?? []).map((p) => p.area).filter(Boolean))]);
+const hotPositions = computed(() => (positions.value ?? []).filter((p) => p.isHot).slice(0, 6));
 const offices = computed(() =>
   positions.value ? new Set(positions.value.map((p) => p.officeName)).size : null,
 );
@@ -69,10 +70,17 @@ const HOW_IT_WORKS = [
     <AppHeader />
 
     <main id="main" class="flex-1">
-      <HeroSection :open-positions="positions ? positions.length : null" :offices="offices" />
+      <HeroSection
+        v-model="filters"
+        :open-positions="positions ? positions.length : null"
+        :offices="offices"
+        :areas="areas"
+        :hot-positions="hotPositions"
+        :positions-loaded="positions !== null"
+      />
 
-      <div class="relative mx-auto -mt-14 max-w-7xl space-y-8 px-4 md:-mt-20 md:px-8">
-        <section class="card p-6 md:p-8" aria-labelledby="upload-title">
+      <div class="relative mx-auto max-w-6xl space-y-8 bg-[#f7f9fc] px-4 pb-8 md:px-8">
+        <section id="upload" class="card scroll-mt-24 p-6 md:p-8" aria-labelledby="upload-title">
           <div class="grid gap-8 lg:grid-cols-5">
             <div class="lg:col-span-3">
               <h2 id="upload-title" class="mb-1 text-xl font-bold text-primary-900 md:text-2xl">העלאת קורות חיים</h2>
