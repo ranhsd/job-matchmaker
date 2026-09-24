@@ -96,12 +96,21 @@ Other scripts: `pnpm build`, `pnpm typecheck`.
 
 ## Deploying to Vercel (free)
 
-1. Push the repo to GitHub.
-2. In Vercel: **Add New → Project**, import the repo, and keep **Root Directory** as the repo root. `vercel.json` already sets the install/build commands, the output directory (`apps/web/dist`) and the `/api/*` rewrite, so no other settings are needed.
-3. Under **Settings → Environment Variables**, add `GOOGLE_GENERATIVE_AI_API_KEY`.
-4. Deploy. Every push to `main` redeploys automatically, and every PR gets a preview URL.
+Deploys run in GitHub Actions (`.github/workflows/deploy.yml`). A push to `main` deploys production. A pull request deploys a preview. The build runs in Actions and is uploaded with `vercel deploy --prebuilt`, so Vercel does not build the same commit again.
 
-Or with the CLI: `npx vercel link && npx vercel env add GOOGLE_GENERATIVE_AI_API_KEY && npx vercel --prod`.
+Leave Vercel’s Git integration disconnected, or turn off its automatic Production and Preview deployments. Otherwise every push builds twice.
+
+`vercel.json` already sets the install and build commands, the output directory (`apps/web/dist`), and the `/api/*` rewrite. Root Directory stays the repo root.
+
+GitHub repository secrets (Settings → Secrets and variables → Actions):
+
+| Secret | Where to get it |
+| --- | --- |
+| `VERCEL_TOKEN` | [Account tokens](https://vercel.com/account/tokens) |
+| `VERCEL_ORG_ID` | Team Settings → Team ID, or `orgId` in `.vercel/project.json` after `vercel link` |
+| `VERCEL_PROJECT_ID` | Project Settings → General → Project ID |
+
+Vercel project environment variable, for both Production and Preview: `GOOGLE_GENERATIVE_AI_API_KEY`. The workflow pulls it with `vercel pull`. Do not put that key in GitHub.
 
 Hobby plan limits to be aware of: 4.5MB request bodies (the app caps CVs at 4MB) and function duration (set to 120s in `vercel.json`; a match usually takes 20–60s).
 
