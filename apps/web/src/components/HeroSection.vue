@@ -38,8 +38,10 @@ function search(event: Event) {
       alt=""
       class="absolute inset-0 size-full object-cover object-center"
     />
-    <div aria-hidden="true" class="absolute inset-0 bg-white/45" />
-    <div aria-hidden="true" class="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-white/80 to-transparent" />
+    <div
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_58%_72%_at_50%_46%,rgba(255,255,255,0.82)_0%,rgba(255,255,255,0.38)_36%,rgba(255,255,255,0)_68%)]"
+    />
 
     <div class="relative mx-auto flex min-h-[34rem] max-w-6xl flex-col px-4 pb-8 pt-8 md:min-h-[40rem] md:px-8 md:pt-14">
       <h1 class="max-w-xl text-4xl font-extrabold leading-[1.15] text-[#16325c] md:text-6xl">
