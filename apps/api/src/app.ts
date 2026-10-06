@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { stream } from "hono/streaming";
 import type { MatchEvent, MatchFilters, PositionsResponse } from "@sigma/shared";
@@ -45,7 +46,21 @@ function parseFilters(raw: unknown): MatchFilters {
 
 export const app = new Hono().basePath("/api");
 
-app.use(secureHeaders());
+app.use(
+  "*",
+  cors({
+    origin: (origin) => (env.allowedOrigins.includes(origin) ? origin : null),
+    allowMethods: ["GET", "HEAD", "POST", "OPTIONS"],
+    allowHeaders: ["Content-Type"],
+    maxAge: 86_400,
+  }),
+);
+app.use(
+  secureHeaders({
+    // The site on Firebase Hosting calls this API on another origin.
+    crossOriginResourcePolicy: "cross-origin",
+  }),
+);
 
 app.onError((err, c) => {
   console.error(err);

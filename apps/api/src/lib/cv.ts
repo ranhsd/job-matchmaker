@@ -1,6 +1,6 @@
 import mammoth from "mammoth";
 
-/** Vercel functions reject request bodies above 4.5MB, so stay safely below. */
+/** Keep uploads under 4MB so a CV stays a reasonable Gemini request. */
 export const MAX_CV_BYTES = 4 * 1024 * 1024;
 
 /**

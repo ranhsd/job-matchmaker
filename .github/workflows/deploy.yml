@@ -1,27 +1,107 @@
-name: Deploy to Vercel
+name: Deploy to Google Cloud
 
 on:
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: vercel-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: gcp-deploy
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      GCP_PROJECT_ID: sigma-matchmaker-dev
+      FIREBASE_PROJECT_ID: matchmaker-f1b1d
+      GCP_REGION: me-west1
+      SERVICE: matchmaker-api
+      AR_REPO: matchmaker
+      RUNTIME_SA_NAME: matchmaker-runtime
+      SECRET_NAME: gemini-api-key
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authenticate
+        env:
+          GCP_USER_CREDENTIALS: ${{ secrets.GCP_USER_CREDENTIALS }}
+        run: |
+          if [ -z "$GCP_USER_CREDENTIALS" ]; then
+            echo "Missing GitHub secret GCP_USER_CREDENTIALS"
+            exit 1
+          fi
+          python3 - <<'PY'
+          import json, os, subprocess
+          data = json.loads(os.environ["GCP_USER_CREDENTIALS"])
+          path = os.path.join(os.environ["RUNNER_TEMP"], "gcp-user.json")
+          with open(path, "w") as handle:
+              json.dump(
+                  {
+                      "type": "authorized_user",
+                      "client_id": data["client_id"],
+                      "client_secret": data["client_secret"],
+                      "refresh_token": data["refresh_token"],
+                  },
+                  handle,
+              )
+          os.chmod(path, 0o600)
+          subprocess.check_call(
+              [
+                  "gcloud",
+                  "auth",
+                  "activate-refresh-token",
+                  "mrkcaptcha@merkava.gov.il",
+                  data["refresh_token"],
+              ]
+          )
+          PY
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Build and push the API image
+        id: image
+        run: |
+          image="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPO}/api:${GITHUB_SHA}"
+          docker build --platform linux/amd64 -t "$image" .
+          docker push "$image"
+          echo "name=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy the API to Cloud Run
+        run: |
+          origins="https://${FIREBASE_PROJECT_ID}.web.app,https://${FIREBASE_PROJECT_ID}.firebaseapp.com"
+          gcloud run deploy "$SERVICE" \
+            --project "$GCP_PROJECT_ID" \
+            --region "$GCP_REGION" \
+            --image "${{ steps.image.outputs.name }}" \
+            --service-account "${RUNTIME_SA_NAME}@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
+            --port 8080 \
+            --timeout 300 \
+            --cpu 1 \
+            --memory 1Gi \
+            --concurrency 10 \
+            --min-instances 1 \
+            --max-instances 3 \
+            --allow-unauthenticated \
+            --set-secrets "GOOGLE_GENERATIVE_AI_API_KEY=${SECRET_NAME}:latest" \
+            --set-env-vars "^|^ALLOWED_ORIGINS=${origins}"
+
+      - name: Read the Cloud Run URL
+        id: api
+        run: |
+          url="$(gcloud run services describe "$SERVICE" \
+            --project "$GCP_PROJECT_ID" \
+            --region "$GCP_REGION" \
+            --format='value(status.url)')"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "API ${url}"
 
       - uses: pnpm/action-setup@v4
 
@@ -30,32 +110,25 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
 
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
-
-      - name: Choose environment
-        id: target
+      - name: Build the website
+        env:
+          VITE_API_URL: ${{ steps.api.outputs.url }}/api
         run: |
-          if [ "${{ github.event_name }}" = "push" ] || { [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; }; then
-            echo "environment=production" >> "$GITHUB_OUTPUT"
-            echo "prod_flag=--prod" >> "$GITHUB_OUTPUT"
-          else
-            echo "environment=preview" >> "$GITHUB_OUTPUT"
-            echo "prod_flag=" >> "$GITHUB_OUTPUT"
-          fi
+          pnpm install --frozen-lockfile
+          pnpm turbo run build --filter=@sigma/web
 
-      - name: Pull Vercel environment
-        run: vercel pull --yes --environment=${{ steps.target.outputs.environment }}
-
-      - name: Build
-        run: vercel build ${{ steps.target.outputs.prod_flag }}
-
-      - name: Deploy
-        id: deploy
+      - name: Deploy the website to Firebase Hosting
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-user.json
+          GOOGLE_CLOUD_QUOTA_PROJECT: matchmaker-f1b1d
         run: |
-          url="$(vercel deploy --prebuilt ${{ steps.target.outputs.prod_flag }})"
-          echo "url=$url" >> "$GITHUB_OUTPUT"
+          npm install --global firebase-tools@14
+          firebase deploy --only hosting --project "$FIREBASE_PROJECT_ID" --non-interactive
+
+      - name: Write the summary
+        run: |
           {
-            echo "### Vercel deployment"
-            echo "$url"
+            echo "### Deployment"
+            echo "- API: ${{ steps.api.outputs.url }} (Cloud Run, ${GCP_PROJECT_ID})"
+            echo "- Site: https://${FIREBASE_PROJECT_ID}.web.app (Firebase Hosting, ${FIREBASE_PROJECT_ID})"
           } >> "$GITHUB_STEP_SUMMARY"

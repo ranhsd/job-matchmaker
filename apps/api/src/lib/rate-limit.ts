@@ -2,7 +2,7 @@ import type { Context } from "hono";
 
 /**
  * Best-effort in-memory sliding-window limiter to protect the LLM budget.
- * On serverless each warm instance keeps its own window, so this is a soft limit;
+ * Each Cloud Run instance keeps its own window, so this is a soft limit;
  * use a shared store (e.g. Upstash Redis) if stricter limits are needed.
  */
 const hits = new Map<string, number[]>();

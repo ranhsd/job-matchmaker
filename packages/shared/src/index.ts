@@ -1,7 +1,7 @@
 /**
  * Types shared between the API and the web app.
  * This package is types-only so it can be imported with `import type`
- * from any runtime (Vite, Node, Vercel functions) without a build step.
+ * from any runtime (Vite, Node) without a build step.
  */
 
 export interface Position {

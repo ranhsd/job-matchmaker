@@ -15,6 +15,10 @@ out/
 # Vercel
 .vercel/
 
+# Firebase
+.firebase/
+firebase-debug.log
+
 # Environment variables (keep the examples)
 .env
 .env.*

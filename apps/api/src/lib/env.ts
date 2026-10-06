@@ -21,4 +21,11 @@ export const env = {
   get rateLimitPerHour() {
     return int(process.env.RATE_LIMIT_PER_HOUR, 10);
   },
+  /** Browser origins allowed to call the API. Empty in local dev, where Vite proxies /api. */
+  get allowedOrigins() {
+    return (process.env.ALLOWED_ORIGINS ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+  },
 };

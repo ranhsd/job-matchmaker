@@ -66,8 +66,7 @@ const scoringSchema = z.object({
   ),
 });
 
-// Outputs are typed explicitly: Vercel's builder type-checks with pnpm symlinks
-// preserved, which makes inference through `Output.object` fall back to `unknown`.
+// Outputs are typed explicitly: inference through `Output.object` falls back to `unknown`.
 type Profile = z.infer<typeof profileSchema>;
 type Screening = z.infer<typeof screeningSchema>;
 type Scoring = z.infer<typeof scoringSchema>;

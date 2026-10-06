@@ -11,8 +11,8 @@ Positions are read live from the public OData API behind the Civil Service recru
 | Monorepo | Turborepo + pnpm workspaces |
 | Frontend | Vue 3, Vite, Tailwind CSS v4, Headless UI, Heroicons – Hebrew / RTL, styled after the gov recruitment site (Rubik, navy `#0c2e4b`, accent `#0574d6`) |
 | Backend | Node.js + Hono (streams progress as NDJSON) |
-| LLM | Google Gemini `gemini-3.5-flash-lite` via the Vercel AI SDK |
-| Hosting | Vercel (static frontend + one serverless function), free Hobby plan |
+| LLM | Google Gemini `gemini-3.5-flash-lite` via `@ai-sdk/google` |
+| Hosting | Firebase Hosting on `matchmaker-f1b1d` (UI) and Cloud Run on `sigma-matchmaker-dev` in `me-west1` (API) |
 
 ```
 apps/
@@ -20,8 +20,8 @@ apps/
   web/        Vue 3 SPA
 packages/
   shared/     Types shared by API and web (types only, no build step)
-api/index.ts  Vercel function entry – re-exports the Hono app
-vercel.json   Build + routing config for Vercel
+Dockerfile    API image for Cloud Run
+firebase.json Firebase Hosting config (apps/web/dist)
 ```
 
 ## How matching works
@@ -92,30 +92,19 @@ Other scripts: `pnpm build`, `pnpm typecheck`.
 | `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Model for CV profiling and catalog screening |
 | `GEMINI_SCORING_MODEL` | same as `GEMINI_MODEL` | Model for detailed scoring |
 | `MATCH_SHORTLIST_SIZE` | `24` | Positions scored in depth |
-| `RATE_LIMIT_PER_HOUR` | `10` | Matches per IP per hour (per serverless instance) |
+| `RATE_LIMIT_PER_HOUR` | `10` | Matches per IP per hour (per Cloud Run instance) |
+| `ALLOWED_ORIGINS` | unset | Comma-separated browser origins. Required in production so Firebase Hosting can call Cloud Run. |
 
-## Deploying to Vercel (free)
+## Deploying
 
-Deploys run in GitHub Actions (`.github/workflows/deploy.yml`). A push to `main` deploys production. A pull request deploys a preview. The build runs in Actions and is uploaded with `vercel deploy --prebuilt`, so Vercel does not build the same commit again.
+A push to `main` runs `.github/workflows/deploy.yml`. It builds the API image and deploys Cloud Run on `sigma-matchmaker-dev`, then builds the site with that API URL and deploys Firebase Hosting on `matchmaker-f1b1d`. The browser calls Cloud Run directly. Hosting does not proxy `/api`, because those rewrites stop at 60 seconds and a match takes longer.
 
-Leave Vercel’s Git integration disconnected, or turn off its automatic Production and Preview deployments. Otherwise every push builds twice.
+The API project already has the Artifact Registry repository, the Cloud Run runtime service account, and the Gemini key in Secret Manager (`gemini-api-key`). GitHub signs in as `mrkcaptcha@merkava.gov.il` using the `GCP_USER_CREDENTIALS` secret. That account can deploy Cloud Run on `sigma-matchmaker-dev` and owns the Firebase project. This project does not allow creating a separate deploy service account key or a Workload Identity pool.
 
-`vercel.json` already sets the install and build commands, the output directory (`apps/web/dist`), and the `/api/*` rewrite. Root Directory stays the repo root.
-
-GitHub repository secrets (Settings → Secrets and variables → Actions):
-
-| Secret | Where to get it |
-| --- | --- |
-| `VERCEL_TOKEN` | [Account tokens](https://vercel.com/account/tokens) |
-| `VERCEL_ORG_ID` | Team Settings → Team ID, or `orgId` in `.vercel/project.json` after `vercel link` |
-| `VERCEL_PROJECT_ID` | Project Settings → General → Project ID |
-
-Vercel project environment variable, for both Production and Preview: `GOOGLE_GENERATIVE_AI_API_KEY`. The workflow pulls it with `vercel pull`. Do not put that key in GitHub.
-
-Hobby plan limits to be aware of: 4.5MB request bodies (the app caps CVs at 4MB) and function duration (set to 120s in `vercel.json`; a match usually takes 20–60s).
+The site is `https://matchmaker-f1b1d.web.app`. The API allows that host and `https://matchmaker-f1b1d.firebaseapp.com`. The Gemini key is not a GitHub secret.
 
 ## Limitations / next steps
 
-- The rate limiter is in-memory per serverless instance. Use Upstash Redis or Vercel KV for a strict global limit.
-- The positions cache is also per instance. A scheduled job (Vercel Cron) could snapshot positions to KV/Blob so every request is warm.
+- The rate limiter is in-memory per Cloud Run instance. With one minimum instance it holds for the life of that instance. It is not shared if the service scales out.
+- The positions cache is also in memory. The minimum instance keeps it warm.
 - Legacy `.doc` files are not supported; users are asked to save as DOCX or PDF.
