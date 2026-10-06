@@ -12,7 +12,7 @@ Positions are read live from the public OData API behind the Civil Service recru
 | Frontend | Vue 3, Vite, Tailwind CSS v4, Headless UI, Heroicons – Hebrew / RTL, styled after the gov recruitment site (Rubik, navy `#0c2e4b`, accent `#0574d6`) |
 | Backend | Node.js + Hono (streams progress as NDJSON) |
 | LLM | Google Gemini `gemini-3.5-flash-lite` via `@ai-sdk/google` |
-| Hosting | Firebase Hosting on `matchmaker-f1b1d` (UI) and Cloud Run on `sigma-matchmaker-dev` in `me-west1` (API) |
+| Hosting | Firebase Hosting (UI) and Cloud Run (API) on `sigma-matchmaker-dev` in `me-west1` |
 
 ```
 apps/
@@ -97,11 +97,11 @@ Other scripts: `pnpm build`, `pnpm typecheck`.
 
 ## Deploying
 
-A push to `main` runs `.github/workflows/deploy.yml`. It builds the API image and deploys Cloud Run on `sigma-matchmaker-dev`, then builds the site with that API URL and deploys Firebase Hosting on `matchmaker-f1b1d`. The browser calls Cloud Run directly. Hosting does not proxy `/api`, because those rewrites stop at 60 seconds and a match takes longer.
+A push to `main` runs `.github/workflows/deploy.yml`. It builds the API image and deploys Cloud Run on `sigma-matchmaker-dev`, then builds the site with that API URL and deploys Firebase Hosting on the same project. The browser calls Cloud Run directly. Hosting does not proxy `/api`, because those rewrites stop at 60 seconds and a match takes longer.
 
 The API project already has the Artifact Registry repository, the Cloud Run runtime service account, and the Gemini key in Secret Manager (`gemini-api-key`). GitHub signs in as `mrkcaptcha@merkava.gov.il` using the `GCP_USER_CREDENTIALS` secret. That account can deploy Cloud Run on `sigma-matchmaker-dev` and owns the Firebase project. This project does not allow creating a separate deploy service account key or a Workload Identity pool.
 
-The site is `https://matchmaker-f1b1d.web.app`. The API allows that host and `https://matchmaker-f1b1d.firebaseapp.com`. The Gemini key is not a GitHub secret.
+The site is `https://sigma-matchmaker-dev.web.app`. The API allows that host and `https://sigma-matchmaker-dev.firebaseapp.com`. The Gemini key is not a GitHub secret.
 
 ## Limitations / next steps
 

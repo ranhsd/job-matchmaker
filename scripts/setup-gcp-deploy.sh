@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # One-time setup for the GitHub Actions deploy.
-# Cloud Run, Artifact Registry, and the Gemini secret live on the API project.
-# The website is the existing Firebase project and is not created here.
+# Cloud Run, Artifact Registry, the Gemini secret, and Firebase Hosting
+# all use the same project.
 #
 # Usage, from the repo root, after `gcloud auth login`:
-#   scripts/setup-gcp-deploy.sh [RUN_PROJECT] [FIREBASE_PROJECT]
+#   scripts/setup-gcp-deploy.sh [PROJECT]
 set -euo pipefail
 
 EXPECTED_ACCOUNT="mrkcaptcha@merkava.gov.il"
@@ -20,7 +20,7 @@ PROVIDER="github"
 cd "$(dirname "$0")/.."
 
 RUN_PROJECT="${1:-sigma-matchmaker-dev}"
-FIREBASE_PROJECT="${2:-matchmaker-f1b1d}"
+FIREBASE_PROJECT="${2:-$RUN_PROJECT}"
 PROJECT_ID="$RUN_PROJECT"
 
 active="$(gcloud auth list --filter=status:ACTIVE --format='value(account)')"

@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GCP_PROJECT_ID: sigma-matchmaker-dev
-      FIREBASE_PROJECT_ID: matchmaker-f1b1d
+      FIREBASE_PROJECT_ID: sigma-matchmaker-dev
       GCP_REGION: me-west1
       SERVICE: matchmaker-api
       AR_REPO: matchmaker
@@ -120,7 +120,7 @@ jobs:
       - name: Deploy the website to Firebase Hosting
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-user.json
-          GOOGLE_CLOUD_QUOTA_PROJECT: matchmaker-f1b1d
+          GOOGLE_CLOUD_QUOTA_PROJECT: sigma-matchmaker-dev
         run: |
           npm install --global firebase-tools@14
           firebase deploy --only hosting --project "$FIREBASE_PROJECT_ID" --non-interactive

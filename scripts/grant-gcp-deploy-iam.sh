@@ -3,9 +3,9 @@
 # Run this as a principal that can set IAM policy and create Workload Identity pools
 # on the project. The account mrkcaptcha@merkava.gov.il cannot.
 #
-# Cloud Run project and Firebase project are separate.
+# Cloud Run and Firebase Hosting use the same project.
 # Usage:
-#   scripts/grant-gcp-deploy-iam.sh [RUN_PROJECT] [FIREBASE_PROJECT]
+#   scripts/grant-gcp-deploy-iam.sh [PROJECT]
 set -euo pipefail
 
 GITHUB_REPO="ranhsd/job-matchmaker"
@@ -15,7 +15,7 @@ POOL="github"
 PROVIDER="github"
 
 RUN_PROJECT="${1:-sigma-matchmaker-dev}"
-FIREBASE_PROJECT="${2:-matchmaker-f1b1d}"
+FIREBASE_PROJECT="${2:-$RUN_PROJECT}"
 
 gcloud config set project "$RUN_PROJECT" >/dev/null
 
