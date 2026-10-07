@@ -56,11 +56,11 @@ function formatSize(bytes: number) {
       tabindex="0"
       :aria-disabled="disabled"
       aria-label="העלאת קובץ קורות חיים. ניתן לגרור קובץ לכאן או ללחוץ לבחירה"
-      class="group flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-10 text-center transition"
+      class="group flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-9 text-center transition"
       :class="
         dragging
           ? 'border-accent-500 bg-accent-50'
-          : 'border-primary-300 bg-primary-100/60 hover:border-primary-600 hover:bg-primary-100'
+          : 'border-primary-200 bg-primary-50 hover:border-accent-500 hover:bg-primary-100/70'
       "
       @click="input?.click()"
       @keydown.enter.prevent="input?.click()"
@@ -69,18 +69,17 @@ function formatSize(bytes: number) {
       @dragleave.prevent="dragging = false"
       @drop.prevent="onDrop"
     >
-      <div class="mb-3 flex size-14 items-center justify-center rounded-full bg-white shadow-card">
-        <CloudArrowUpIcon class="size-7 text-primary-700" aria-hidden="true" />
+      <div class="mb-4 flex size-12 items-center justify-center rounded-xl bg-accent-500 text-white shadow-[0_8px_18px_-6px_rgb(5_116_214/0.6)] transition group-hover:bg-accent-600">
+        <CloudArrowUpIcon class="size-6" aria-hidden="true" />
       </div>
-      <p class="text-base font-medium text-primary-900">גררו לכאן את קובץ קורות החיים</p>
+      <p class="text-base font-bold text-primary-900">גררו לכאן את קובץ קורות החיים</p>
       <p class="mt-1 text-sm text-black/60">
-        או <span class="font-medium text-accent-600 underline">בחרו קובץ מהמחשב</span>
+        או <span class="font-bold text-accent-600 underline">בחרו קובץ מהמחשב</span>
       </p>
-      <p class="mt-3 text-xs text-black/50">קבצי <bdi>PDF</bdi>, <bdi>DOCX</bdi>, <bdi>TXT</bdi> או תמונה · עד <bdi>4MB</bdi></p>
     </div>
 
-    <div v-else class="flex items-center gap-4 rounded-lg border border-primary-200 bg-primary-100/60 p-4">
-      <div class="flex size-12 shrink-0 items-center justify-center rounded-gov bg-white shadow-card">
+    <div v-else class="flex items-center gap-4 rounded-xl border border-primary-200 bg-primary-50 p-4">
+      <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white shadow-card">
         <DocumentTextIcon class="size-6 text-primary-700" aria-hidden="true" />
       </div>
       <div class="min-w-0 flex-1">

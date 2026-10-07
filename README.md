@@ -1,4 +1,4 @@
-# השדכן החכם שלי – התאמת משרות בשירות המדינה לקורות חיים
+# התאמה בקליק – התאמת משרות בשירות המדינה לקורות חיים
 
 Upload a CV (PDF / DOCX / TXT / image) and get the open Israeli Civil Service positions that fit it best, ranked with a match score, a threshold-requirements check, and a Hebrew explanation of why each position fits and what may be missing.
 

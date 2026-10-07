@@ -32,6 +32,7 @@
   --radius-gov: 4px;
   --shadow-header: 0 0 3px 0 rgb(0 0 0 / 0.16);
   --shadow-card: 0 2px 10px 0 rgb(12 46 75 / 0.08);
+  --shadow-float: 0 24px 60px -20px rgb(0 26 52 / 0.45);
 }
 
 @layer base {
@@ -46,22 +47,34 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-gov bg-primary-900 px-6 py-3 text-[15px] font-medium text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-primary-300;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary-900 px-6 py-3 text-[15px] font-bold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-primary-200 disabled:text-primary-400;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-gov border border-primary-900 bg-white px-5 py-2.5 text-[15px] font-medium text-primary-900 transition hover:bg-primary-100;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-primary-900 bg-white px-5 py-2.5 text-[15px] font-medium text-primary-900 transition hover:bg-primary-100;
+  }
+
+  .btn-accent {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-accent-600 px-6 py-3 text-[15px] font-bold text-white transition hover:bg-accent-500;
+  }
+
+  .btn-pill {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-highlight-600 px-7 py-3 text-[15px] font-bold text-white shadow-[0_8px_20px_-8px_rgb(224_26_102/0.6)] transition hover:bg-highlight-500;
   }
 
   .card {
-    @apply rounded-gov bg-white shadow-card;
+    @apply rounded-xl bg-white shadow-card;
   }
 
   .chip {
     @apply inline-flex items-center rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-medium text-primary-800;
   }
 
+  .eyebrow {
+    @apply text-sm font-bold text-accent-600;
+  }
+
   .section-title {
-    @apply text-2xl font-extrabold text-primary-800 md:text-[35px] md:leading-tight;
+    @apply text-2xl font-extrabold text-primary-900 md:text-[35px] md:leading-tight;
   }
 }
