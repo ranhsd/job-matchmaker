@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowPathIcon, DocumentMagnifyingGlassIcon, ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import { ACCEPTED_FORMATS, OFFICIAL_SITE } from "../lib/format";
+import RecruitmentLink from "./RecruitmentLink.vue";
 
 defineProps<{ kind: "empty" | "file" | "search"; detail?: string | null }>();
 const emit = defineEmits<{ home: []; upload: []; retry: [] }>();
@@ -26,9 +27,9 @@ const emit = defineEmits<{ home: []; upload: []; retry: [] }>();
         </p>
         <div class="mt-6 flex flex-col items-start gap-3">
           <button type="button" class="btn-primary" @click="emit('home')">חזרה לדף הבית</button>
-          <a :href="OFFICIAL_SITE" target="_blank" rel="noopener" class="btn-secondary">
+          <RecruitmentLink :href="OFFICIAL_SITE" class="btn-secondary">
             צפייה בכל המשרות הפתוחות<span class="sr-only"> (נפתח בחלון חדש)</span>
-          </a>
+          </RecruitmentLink>
         </div>
       </template>
 

@@ -31,7 +31,7 @@ const SAMPLE: MatchResult = {
     publicationType: "מכרז פומבי",
     isPublic: true,
     isHot: false,
-    level: "",
+    level: "משרת ביניים",
     jobRating: "",
     rankFrom: "",
     rankTo: "",

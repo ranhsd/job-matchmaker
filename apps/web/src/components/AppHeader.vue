@@ -2,6 +2,7 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/vue/20/solid";
 import { OFFICIAL_SITE } from "../lib/format";
 import BrandMark from "./BrandMark.vue";
+import RecruitmentLink from "./RecruitmentLink.vue";
 
 const emit = defineEmits<{ home: [] }>();
 </script>
@@ -18,16 +19,14 @@ const emit = defineEmits<{ home: [] }>();
         </span>
       </a>
 
-      <a
+      <RecruitmentLink
         :href="OFFICIAL_SITE"
-        target="_blank"
-        rel="noopener"
         class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-primary-200 px-3 py-1.5 text-sm font-medium sm:px-4 text-primary-900 transition hover:border-primary-400 hover:bg-primary-50"
       >
         אתר הגיוס
         <ArrowTopRightOnSquareIcon class="size-3.5 rtl:-scale-x-100" aria-hidden="true" />
         <span class="sr-only">(נפתח בחלון חדש)</span>
-      </a>
+      </RecruitmentLink>
     </div>
   </header>
 </template>

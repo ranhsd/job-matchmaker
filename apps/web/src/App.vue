@@ -8,6 +8,7 @@ import CtaBanner from "./components/CtaBanner.vue";
 import HeroSection from "./components/HeroSection.vue";
 import HowItWorksSection from "./components/HowItWorksSection.vue";
 import InfoDialog from "./components/InfoDialog.vue";
+import LeaveSiteDialog from "./components/LeaveSiteDialog.vue";
 import MatchExampleSection from "./components/MatchExampleSection.vue";
 import ResultsView from "./components/ResultsView.vue";
 import SystemMessage from "./components/SystemMessage.vue";
@@ -115,5 +116,6 @@ watch(view, (next, prev) => {
 
     <AppFooter @info="infoTopic = $event" />
     <InfoDialog :topic="infoTopic" @close="infoTopic = null" />
+    <LeaveSiteDialog />
   </div>
 </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { type InfoTopic, OFFICIAL_SITE } from "../lib/format";
+import RecruitmentLink from "./RecruitmentLink.vue";
 
 const emit = defineEmits<{ info: [topic: InfoTopic] }>();
 </script>
@@ -18,9 +19,9 @@ const emit = defineEmits<{ info: [topic: InfoTopic] }>();
         <button type="button" class="underline underline-offset-4 hover:text-highlight-300" @click="emit('info', 'accessibility')">
           נגישות
         </button>
-        <a :href="OFFICIAL_SITE" target="_blank" rel="noopener" class="underline underline-offset-4 hover:text-highlight-300">
+        <RecruitmentLink :href="OFFICIAL_SITE" class="underline underline-offset-4 hover:text-highlight-300">
           לאתר הגיוס הרשמי<span class="sr-only"> (נפתח בחלון חדש)</span>
-        </a>
+        </RecruitmentLink>
       </nav>
     </div>
   </footer>

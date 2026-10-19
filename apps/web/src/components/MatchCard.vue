@@ -12,6 +12,7 @@ import {
   UNCLEAR_ADVICE,
 } from "../lib/format";
 import CheckBox from "./CheckBox.vue";
+import RecruitmentLink from "./RecruitmentLink.vue";
 
 const props = withDefaults(defineProps<{ match: MatchResult; layout?: "split" | "stacked"; sample?: boolean }>(), {
   layout: "split",
@@ -47,6 +48,7 @@ const titleId = computed(() => `match-${props.sample ? "sample" : position.value
         <ul class="mt-3 flex flex-wrap gap-1.5" aria-label="פרטי המשרה">
           <li class="chip">{{ jobScopeLabel(position) }}</li>
           <li class="chip">{{ tenderTypeLabel(position) }}</li>
+          <li v-if="position.level" class="chip">רמת תפקיד: {{ position.level }}</li>
           <li v-if="position.lastSubmissionDate" class="chip">מועד אחרון להגשה: {{ formatDate(position.lastSubmissionDate) }}</li>
         </ul>
       </header>
@@ -100,11 +102,11 @@ const titleId = computed(() => `match-${props.sample ? "sample" : position.value
           לפרטי המכרז ולהגשת מועמדות
           <ArrowTopRightOnSquareIcon class="size-4 rtl:-scale-x-100" />
         </span>
-        <a v-else :href="position.url" target="_blank" rel="noopener" class="btn-primary w-full">
+        <RecruitmentLink v-else :href="position.url" class="btn-primary w-full">
           לפרטי המכרז ולהגשת מועמדות
           <ArrowTopRightOnSquareIcon class="size-4 rtl:-scale-x-100" aria-hidden="true" />
           <span class="sr-only">(נפתח בחלון חדש)</span>
-        </a>
+        </RecruitmentLink>
         <p class="mt-2.5 text-center text-xs text-black/55">{{ MATCH_DISCLAIMER }}</p>
       </div>
     </div>
