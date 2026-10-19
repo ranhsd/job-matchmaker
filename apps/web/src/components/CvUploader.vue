@@ -61,8 +61,11 @@ function formatSize(bytes: number) {
       tabindex="0"
       :aria-disabled="disabled"
       aria-label="העלאת קורות חיים. אפשר לגרור לכאן קובץ או ללחוץ כדי לבחור קובץ מהמכשיר"
-      class="group flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-8 text-center transition"
-      :class="dragging ? 'border-accent-500 bg-accent-50' : 'border-primary-300 bg-primary-50/60 hover:border-accent-500 hover:bg-accent-50/60'"
+      class="group flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-8 text-center transition"
+      :class="[
+        disabled ? 'cursor-not-allowed' : 'cursor-pointer',
+        dragging ? 'border-accent-500 bg-accent-50' : 'border-primary-300 bg-primary-50/60 hover:border-accent-500 hover:bg-accent-50/60',
+      ]"
       @click="browse"
       @keydown.enter.prevent="browse"
       @keydown.space.prevent="browse"

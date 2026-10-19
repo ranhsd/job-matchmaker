@@ -45,6 +45,14 @@
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-accent-500;
   }
+
+  button:not(:disabled, [aria-disabled="true"]),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  select:not(:disabled),
+  label[for] {
+    cursor: pointer;
+  }
 }
 
 @layer components {
