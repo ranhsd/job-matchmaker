@@ -40,7 +40,7 @@ const titleId = computed(() => `match-${props.sample ? "sample" : position.value
       <header :class="layout === 'stacked' && 'p-5 md:p-6'">
         <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
           <h3 :id="titleId" class="text-lg font-extrabold leading-snug text-primary-900">{{ position.tenderName }}</h3>
-          <span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-bold" :class="category.badge">{{ category.label }}</span>
+          <span class="shrink-0 rounded-full px-3 py-1 text-xs font-extrabold" :class="category.badge">{{ category.label }}</span>
         </div>
         <p class="mt-1 text-sm text-black/65">
           {{ position.officeName }}<span v-if="position.locationName"> | {{ position.locationName }}</span>
@@ -61,7 +61,7 @@ const titleId = computed(() => `match-${props.sample ? "sample" : position.value
       <section v-if="match.evidence.length" :class="layout === 'split' ? 'mt-5' : 'border-t border-primary-100 p-5 md:p-6'">
         <div class="flex items-center justify-between gap-3">
           <h4 class="text-sm font-bold text-primary-900">מידת ההתאמה המקצועית</h4>
-          <span v-if="layout === 'stacked'" class="rounded-full px-2.5 py-0.5 text-xs font-bold" :class="category.badge">
+          <span v-if="layout === 'stacked'" class="rounded-full px-2.5 py-0.5 text-xs font-extrabold" :class="category.badge">
             {{ category.shortLabel }}
           </span>
         </div>

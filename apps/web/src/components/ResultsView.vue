@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { AdjustmentsHorizontalIcon, ArrowPathIcon } from "@heroicons/vue/20/solid";
+import {
+  AcademicCapIcon,
+  AdjustmentsHorizontalIcon,
+  ArrowPathIcon,
+  BriefcaseIcon,
+  ClockIcon,
+  WrenchScrewdriverIcon,
+} from "@heroicons/vue/20/solid";
 import type { CandidateProfile, MatchFilters, MatchResult } from "@sigma/shared";
 import { CATEGORIES, CATEGORY_ORDER, preferenceChips } from "../lib/format";
 import MatchCard from "./MatchCard.vue";
@@ -15,15 +22,16 @@ const sections = computed(() =>
   ),
 );
 
-const profileRows = computed(() => {
-  const p = props.profile;
-  if (!p) return [];
-  return [
-    { label: "תחומי ניסיון שזוהו", value: p.domains.join(", ") },
-    { label: "השכלה", value: p.education.slice(0, 2).join("; ") },
-    { label: "שנות ניסיון", value: p.yearsOfExperience !== null ? `${p.yearsOfExperience}` : "" },
-    { label: "כישורים ורישיונות", value: [...p.licenses, ...p.skills].slice(0, 6).join(", ") },
-  ].map((row) => ({ ...row, value: row.value || "לא זוהה" }));
+const NOT_FOUND = "לא זוהה";
+
+const domains = computed(() => props.profile?.domains.slice(0, 6) ?? []);
+const education = computed(() => props.profile?.education.slice(0, 3) ?? []);
+const skills = computed(() => [...(props.profile?.licenses ?? []), ...(props.profile?.skills ?? [])].slice(0, 8));
+const years = computed(() => {
+  const n = props.profile?.yearsOfExperience;
+  if (n === null || n === undefined) return NOT_FOUND;
+  if (n <= 0) return "ללא ניסיון";
+  return n === 1 ? "שנה אחת" : `${n} שנים`;
 });
 </script>
 
@@ -60,20 +68,93 @@ const profileRows = computed(() => {
           </div>
         </div>
 
-        <div class="rounded-2xl bg-white/10 p-5 ring-1 ring-white/15 md:p-6">
-          <h2 class="font-bold">פירוט הפרופיל האישי</h2>
-          <dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-            <div v-for="row in profileRows" :key="row.label">
-              <dt class="text-white/70">{{ row.label }}</dt>
-              <dd class="mt-0.5 font-bold">{{ row.value }}</dd>
+        <div class="card overflow-hidden text-black/85 shadow-float" role="region" aria-labelledby="profile-title">
+          <div class="h-1.5 bg-gradient-to-l from-accent-500 to-highlight-500" aria-hidden="true" />
+          <div class="p-5 md:p-6">
+            <p class="eyebrow">מה זיהינו בקורות החיים שלך</p>
+            <h2 id="profile-title" class="mt-1 text-lg font-extrabold text-primary-900">פירוט הפרופיל האישי</h2>
+
+            <dl class="mt-5 space-y-4">
+              <div class="flex gap-3">
+                <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-50 text-accent-600" aria-hidden="true">
+                  <BriefcaseIcon class="size-5" />
+                </span>
+                <div class="min-w-0 flex-1">
+                  <dt class="text-xs font-bold text-primary-900/75">תחומי ניסיון שזוהו</dt>
+                  <dd class="mt-1.5">
+                    <ul v-if="domains.length" class="flex flex-wrap gap-1.5">
+                      <li v-for="item in domains" :key="item" class="chip bg-accent-50 text-accent-700">
+                        {{ item }}
+                      </li>
+                    </ul>
+                    <span v-else class="text-sm text-black/55">{{ NOT_FOUND }}</span>
+                  </dd>
+                </div>
+              </div>
+
+              <div class="grid gap-4 sm:grid-cols-[1fr_auto]">
+                <div class="flex gap-3">
+                  <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-50 text-accent-600" aria-hidden="true">
+                    <AcademicCapIcon class="size-5" />
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <dt class="text-xs font-bold text-primary-900/75">השכלה</dt>
+                    <dd class="mt-1">
+                      <ul v-if="education.length" class="space-y-1 text-sm leading-snug">
+                        <li v-for="item in education" :key="item">
+                          {{ item }}
+                        </li>
+                      </ul>
+                      <span v-else class="text-sm text-black/55">{{ NOT_FOUND }}</span>
+                    </dd>
+                  </div>
+                </div>
+
+                <div class="flex gap-3 sm:w-[150px]">
+                  <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-50 text-accent-600" aria-hidden="true">
+                    <ClockIcon class="size-5" />
+                  </span>
+                  <div class="min-w-0">
+                    <dt class="text-xs font-bold text-primary-900/75">שנות ניסיון</dt>
+                    <dd class="mt-1 text-sm text-black/85">{{ years }}</dd>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex gap-3">
+                <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-50 text-accent-600" aria-hidden="true">
+                  <WrenchScrewdriverIcon class="size-5" />
+                </span>
+                <div class="min-w-0 flex-1">
+                  <dt class="text-xs font-bold text-primary-900/75">כישורים ורישיונות</dt>
+                  <dd class="mt-1.5">
+                    <ul v-if="skills.length" class="flex flex-wrap gap-1.5">
+                      <li v-for="item in skills" :key="item" class="chip">
+                        {{ item }}
+                      </li>
+                    </ul>
+                    <span v-else class="text-sm text-black/55">{{ NOT_FOUND }}</span>
+                  </dd>
+                </div>
+              </div>
+            </dl>
+
+            <div class="mt-5 border-t border-primary-100 pt-4">
+              <p class="flex items-center gap-1.5 text-xs font-bold text-primary-900/75">
+                <AdjustmentsHorizontalIcon class="size-4 text-accent-600" aria-hidden="true" />
+                ההעדפות שבחרת
+              </p>
+              <ul class="mt-2 flex flex-wrap gap-1.5" aria-label="ההעדפות שבחרת">
+                <li
+                  v-for="chip in preferenceChips(filters)"
+                  :key="chip"
+                  class="rounded-full bg-primary-900 px-3 py-1 text-xs font-bold text-white"
+                >
+                  {{ chip }}
+                </li>
+              </ul>
             </div>
-          </dl>
-          <p class="mt-4 text-sm text-white/70">ההעדפות שבחרת</p>
-          <ul class="mt-2 flex flex-wrap gap-1.5">
-            <li v-for="chip in preferenceChips(filters)" :key="chip" class="rounded-md bg-white/10 px-2.5 py-1 text-xs font-medium ring-1 ring-white/15">
-              {{ chip }}
-            </li>
-          </ul>
+          </div>
         </div>
       </div>
     </section>

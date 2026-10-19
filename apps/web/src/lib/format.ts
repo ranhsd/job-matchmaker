@@ -58,7 +58,7 @@ export const CATEGORIES: Record<MatchCategory, CategoryMeta> = {
     shortLabel: "התאמה גבוהה",
     title: "רלוונטיות לניסיון שלך",
     description: "משרות עם התאמה מקצועית גבוהה לניסיון ולכישורים שזוהו בקורות החיים.",
-    badge: "bg-emerald-50 text-emerald-800",
+    badge: "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200",
     dot: "bg-emerald-600",
   },
   possible: {
@@ -66,7 +66,7 @@ export const CATEGORIES: Record<MatchCategory, CategoryMeta> = {
     shortLabel: "התאמה אפשרית",
     title: "משרות שכדאי לבדוק",
     description: "משרות שבהן זוהתה התאמה מקצועית אפשרית, לצד מידע נוסף שכדאי לברר.",
-    badge: "bg-accent-50 text-accent-700",
+    badge: "bg-accent-100 text-accent-700 ring-1 ring-accent-500/20",
     dot: "bg-accent-500",
   },
   discover: {
@@ -74,7 +74,7 @@ export const CATEGORIES: Record<MatchCategory, CategoryMeta> = {
     shortLabel: "הזדמנות נוספת",
     title: "אפשרויות שאולי לא חשבת עליהן",
     description: "משרות בתחומים משיקים שבהם הניסיון והכישורים שלך עשויים להיות רלוונטיים.",
-    badge: "bg-highlight-50 text-highlight-700",
+    badge: "bg-highlight-100 text-highlight-700 ring-1 ring-highlight-300/60",
     dot: "bg-highlight-600",
   },
 };

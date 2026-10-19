@@ -61,7 +61,7 @@ const SAMPLE: MatchResult = {
 
         <h3 class="mt-8 text-sm font-bold text-primary-900">רמות ההתאמה</h3>
         <ul class="mt-3 flex flex-wrap gap-2">
-          <li v-for="id in CATEGORY_ORDER" :key="id" class="rounded-full px-3 py-1 text-xs font-bold" :class="CATEGORIES[id].badge">
+          <li v-for="id in CATEGORY_ORDER" :key="id" class="rounded-full px-3 py-1 text-xs font-extrabold" :class="CATEGORIES[id].badge">
             {{ CATEGORIES[id].label }}
           </li>
         </ul>
