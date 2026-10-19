@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { stream } from "hono/streaming";
-import type { MatchEvent, MatchFilters, PositionsResponse } from "@sigma/shared";
+import type { ApiError, JobScope, MatchErrorCode, MatchEvent, MatchFilters, PositionsResponse, TenderAudience } from "@sigma/shared";
 import { CvError, readCv } from "./lib/cv.js";
 import { env } from "./lib/env.js";
 import { MatchError, matchCv } from "./lib/matcher.js";
@@ -24,9 +24,27 @@ function errorMessage(err: unknown): string {
   }
   const message = (err as Error)?.message ?? "";
   if (/quota|rate limit|resource.?exhausted|429/i.test(message)) {
-    return "חרגנו ממכסת השימוש במודל ה-AI. נסו שוב בעוד מספר דקות";
+    return "חרגנו זמנית ממכסת השימוש במודל ה-AI";
   }
-  return "אירעה שגיאה בלתי צפויה. נסו שוב מאוחר יותר";
+  return "אירעה שגיאה בלתי צפויה";
+}
+
+function errorCode(err: unknown): MatchErrorCode {
+  if (err instanceof CvError) return "file";
+  if (err instanceof MatchError) return err.code;
+  return "search";
+}
+
+function apiError(err: unknown): ApiError {
+  return { error: errorMessage(err), code: errorCode(err) };
+}
+
+function text(value: unknown, max = 100): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, max) : undefined;
+}
+
+function oneOf<T extends string>(value: unknown, options: readonly T[]): T | undefined {
+  return options.find((option) => option === value);
 }
 
 function parseFilters(raw: unknown): MatchFilters {
@@ -34,10 +52,12 @@ function parseFilters(raw: unknown): MatchFilters {
   try {
     const f = JSON.parse(raw) as Record<string, unknown>;
     return {
-      publicOnly: f.publicOnly === true,
-      areas: Array.isArray(f.areas) ? f.areas.filter((a): a is string => typeof a === "string").slice(0, 10) : [],
-      minJobPercent: typeof f.minJobPercent === "number" ? f.minJobPercent : undefined,
-      notes: typeof f.notes === "string" ? f.notes.slice(0, 500) : undefined,
+      audience: oneOf<TenderAudience>(f.audience, ["public", "employees"]),
+      area: text(f.area),
+      jobScope: oneOf<JobScope>(f.jobScope, ["full", "partial"]),
+      field: text(f.field),
+      level: text(f.level),
+      notes: text(f.notes, 500),
     };
   } catch {
     return {};
@@ -64,7 +84,7 @@ app.use(
 
 app.onError((err, c) => {
   console.error(err);
-  return c.json({ error: errorMessage(err) }, errorStatus(err));
+  return c.json(apiError(err), errorStatus(err));
 });
 
 app.get("/health", (c) =>
@@ -92,12 +112,12 @@ app.post("/match", async (c) => {
   const limit = checkRateLimit(clientIp(c), env.rateLimitPerHour);
   if (!limit.ok) {
     c.header("Retry-After", String(limit.retryAfterSec));
-    return c.json({ error: "בוצעו יותר מדי ניסיונות התאמה. נסו שוב מאוחר יותר" }, 429);
+    return c.json<ApiError>({ error: "בוצעו יותר מדי ניסיונות התאמה. נסו שוב מאוחר יותר", code: "search" }, 429);
   }
 
   const body = await c.req.parseBody();
   const file = body.file;
-  if (!(file instanceof File)) return c.json({ error: "לא הועלה קובץ קורות חיים" }, 400);
+  if (!(file instanceof File)) return c.json<ApiError>({ error: "לא הועלה קובץ קורות חיים", code: "file" }, 400);
 
   const cv = await readCv(file);
   const filters = parseFilters(body.filters);
@@ -113,7 +133,8 @@ app.post("/match", async (c) => {
       for await (const event of matchCv(cv, filters)) await send(event);
     } catch (err) {
       console.error(err);
-      await send({ type: "error", message: errorMessage(err) });
+      const { error, code } = apiError(err);
+      await send({ type: "error", code, message: error });
     }
   });
 });

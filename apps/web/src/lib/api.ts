@@ -1,26 +1,29 @@
-import type { MatchEvent, MatchFilters, PositionDetails, PositionsResponse } from "@sigma/shared";
+import type { ApiError, MatchErrorCode, MatchEvent, MatchFilters, PositionsResponse } from "@sigma/shared";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
-async function readError(res: Response): Promise<string> {
+export class RequestError extends Error {
+  constructor(
+    message: string,
+    readonly code: MatchErrorCode = "search",
+  ) {
+    super(message);
+  }
+}
+
+async function readError(res: Response): Promise<RequestError> {
   try {
-    const body = (await res.json()) as { error?: string };
-    if (body.error) return body.error;
+    const body = (await res.json()) as Partial<ApiError>;
+    if (body.error) return new RequestError(body.error, body.code);
   } catch {
     // non-JSON error body
   }
-  return `שגיאת שרת (${res.status})`;
+  return new RequestError(`שגיאת שרת (${res.status})`);
 }
 
 export async function fetchPositions(): Promise<PositionsResponse> {
   const res = await fetch(`${API_BASE}/positions`);
-  if (!res.ok) throw new Error(await readError(res));
-  return res.json();
-}
-
-export async function fetchPosition(requestId: string): Promise<PositionDetails> {
-  const res = await fetch(`${API_BASE}/positions/${encodeURIComponent(requestId)}`);
-  if (!res.ok) throw new Error(await readError(res));
+  if (!res.ok) throw await readError(res);
   return res.json();
 }
 
@@ -34,8 +37,14 @@ export async function* streamMatch(
   form.append("file", file);
   form.append("filters", JSON.stringify(filters));
 
-  const res = await fetch(`${API_BASE}/match`, { method: "POST", body: form, signal });
-  if (!res.ok || !res.body) throw new Error(await readError(res));
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/match`, { method: "POST", body: form, signal });
+  } catch (err) {
+    if ((err as Error).name === "AbortError") throw err;
+    throw new RequestError("אין חיבור לשרת");
+  }
+  if (!res.ok || !res.body) throw await readError(res);
 
   const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
   let buffer = "";

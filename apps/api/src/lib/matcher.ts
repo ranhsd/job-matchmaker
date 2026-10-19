@@ -3,6 +3,8 @@ import { generateText, Output, type UserContent } from "ai";
 import { z } from "zod";
 import type {
   CandidateProfile,
+  MatchCategory,
+  MatchErrorCode,
   MatchEvent,
   MatchFilters,
   MatchResult,
@@ -14,11 +16,13 @@ import { getOpenPositions, stripDetails } from "./merkava.js";
 import { truncate } from "./text.js";
 
 const SCORING_BATCH_SIZE = 8;
+const CATEGORY_ORDER: Record<MatchCategory, number> = { strong: 0, possible: 1, discover: 2 };
 
 export class MatchError extends Error {
   constructor(
     message: string,
     readonly status = 400,
+    readonly code: MatchErrorCode = "search",
   ) {
     super(message);
   }
@@ -45,6 +49,9 @@ const screeningSchema = z.object({
       z.object({
         id: z.number().int().describe("מזהה המשרה מהרשימה"),
         relevance: z.number().int().min(0).max(100),
+        kind: z
+          .enum(["direct", "adjacent"])
+          .describe("direct: משרה בתחום המקצועי של המועמד/ת. adjacent: תחום משיק שבו הכישורים עשויים להיות רלוונטיים"),
       }),
     )
     .describe("המשרות הרלוונטיות ביותר, ממוינות מהרלוונטית ביותר"),
@@ -54,14 +61,29 @@ const scoringSchema = z.object({
   results: z.array(
     z.object({
       id: z.number().int(),
-      score: z.number().int().min(0).max(100).describe("ציון התאמה כולל"),
-      fitLevel: z.enum(["excellent", "good", "partial", "low"]),
-      meetsThreshold: z
-        .enum(["yes", "partial", "no", "unknown"])
-        .describe("האם המועמד/ת עומד/ת בדרישות הסף הפורמליות (השכלה, ניסיון, רישיונות)"),
-      summary: z.string().describe("משפט אחד שמסכם את ההתאמה"),
-      reasons: z.array(z.string()).describe("2-4 סיבות קונקרטיות מדוע המשרה מתאימה, בהתבסס על קורות החיים"),
-      gaps: z.array(z.string()).describe("0-3 פערים או דרישות שלא ברור שמתקיימות"),
+      category: z
+        .enum(["strong", "possible", "discover", "none"])
+        .describe(
+          "strong: התאמה מקצועית גבוהה. possible: התאמה מקצועית אפשרית. discover: הזדמנות נוספת בתחום משיק. none: המשרה אינה רלוונטית",
+        ),
+      score: z.number().int().min(0).max(100).describe("עוצמת ההתאמה, לסידור המשרות בתוך הקטגוריה"),
+      whyRelevant: z
+        .string()
+        .describe("1-2 משפטים: מהות התפקיד והקשר בין תחומי העיסוק בו לניסיון ולכישורים שזוהו בקורות החיים"),
+      evidence: z
+        .array(z.string())
+        .describe("1-3 נתונים קצרים מקורות החיים שתומכים בהתאמה, למשל: 'ניסיון בהובלת פרויקטים ובעבודה מול ממשקים'"),
+      checks: z
+        .array(
+          z.object({
+            status: z
+              .enum(["supported", "unclear", "gap"])
+              .describe("supported: נמצא מידע תומך. unclear: לא נמצא מספיק מידע. gap: זוהה פער מהותי"),
+            requirement: z.string().describe("הדרישה המהותית מהמכרז, בקצרה"),
+            note: z.string().describe("מה נמצא או לא נמצא בקורות החיים לגבי הדרישה"),
+          }),
+        )
+        .describe("1-4 דרישות מהותיות מהמכרז, דרישות הסף קודם"),
     }),
   ),
 });
@@ -107,9 +129,12 @@ function profileToText(p: Profile, filters: MatchFilters): string {
 
 function applyFilters(positions: PositionDetails[], filters: MatchFilters): PositionDetails[] {
   return positions.filter((p) => {
-    if (filters.publicOnly && !p.isPublic) return false;
-    if (filters.areas?.length && !filters.areas.includes(p.area)) return false;
-    if (filters.minJobPercent && p.jobPercent < filters.minJobPercent) return false;
+    if (filters.audience !== "employees" && !p.isPublic) return false;
+    if (filters.area && p.area !== filters.area) return false;
+    if (filters.jobScope === "full" && p.jobPercent < 100) return false;
+    if (filters.jobScope === "partial" && p.jobPercent >= 100) return false;
+    if (filters.field && !p.fields.includes(filters.field)) return false;
+    if (filters.level && p.level !== filters.level) return false;
     return true;
   });
 }
@@ -130,9 +155,9 @@ function catalogLine(p: PositionDetails, id: number): string {
     .join(" · ");
 }
 
-function positionBlock(p: PositionDetails, id: number): string {
+function positionBlock(p: PositionDetails, id: number, adjacent: boolean): string {
   return [
-    `### משרה [${id}]: ${p.tenderName}`,
+    `### משרה [${id}]: ${p.tenderName}${adjacent ? " (נבחרה בסינון כתחום משיק)" : ""}`,
     `משרד: ${p.officeName}${p.officeUnitName ? ` – ${p.officeUnitName}` : ""}`,
     `מיקום: ${p.locationName} (${p.area}) | סוג: ${p.publicationType} | דרגה: ${p.jobRating} ${p.rankFrom}-${p.rankTo} | ${p.level} | היקף: ${p.jobPercent}%`,
     `תיאור התפקיד:\n${truncate(p.description, 1500)}`,
@@ -143,7 +168,8 @@ function positionBlock(p: PositionDetails, id: number): string {
 const SYSTEM_PROMPT = `את/ה יועץ/ת קריירה מומחה/ית לגיוס לשירות המדינה בישראל.
 את/ה מכיר/ה היטב את מבנה המכרזים: דרישות סף (השכלה, ניסיון, רישיונות) הן תנאי חובה, ודרישות רצויות הן יתרון.
 את/ה מדייק/ת ומבוסס/ת רק על מה שכתוב בקורות החיים ובמשרה – לא ממציא/ה ניסיון או כישורים.
-כל הטקסט שאת/ה מחזיר/ה חייב להיות בעברית.`;
+כל הטקסט שאת/ה מחזיר/ה חייב להיות בעברית.
+כשאת/ה פונה למועמד/ת, כתוב/כתבי בגוף שני יחיד בלשון ניטרלית מגדרית ("הניסיון שלך", "עשוי להיות רלוונטי לך"), בלי פעלים בלשון זכר או נקבה.`;
 
 async function extractProfile(cv: CvInput): Promise<Profile> {
   const { output } = await generateText({
@@ -163,19 +189,27 @@ async function extractProfile(cv: CvInput): Promise<Profile> {
   return output as Profile;
 }
 
+interface ShortlistItem {
+  id: number;
+  adjacent: boolean;
+}
+
 async function screenPositions(
   profileText: string,
   positions: PositionDetails[],
   limit: number,
-): Promise<number[]> {
+): Promise<ShortlistItem[]> {
+  const adjacentSlots = Math.max(1, Math.round(limit / 3));
   const catalog = positions.map((p, i) => catalogLine(p, i)).join("\n");
   const { output } = await generateText({
     model: getModel(env.model),
     system: SYSTEM_PROMPT,
     output: Output.object({ schema: screeningSchema }),
     prompt: `להלן פרופיל מועמד/ת ורשימה של ${positions.length} משרות פתוחות בשירות המדינה.
-בחר/י עד ${limit} משרות שהמועמד/ת הכי מתאים/ה להן – בעיקר לפי תחום מקצועי, השכלה, ניסיון ודרישות סף.
-העדף/י משרות שהמועמד/ת עשוי/ה לעמוד בדרישות הסף שלהן. אל תבחר/י משרות שאינן קשורות לתחום.
+בחר/י עד ${limit} משרות שכדאי למועמד/ת להכיר:
+- רוב המשרות (kind=direct): בתחום המקצועי של המועמד/ת, לפי השכלה, ניסיון, כישורים ודרישות סף.
+- עד ${adjacentSlots} משרות (kind=adjacent): בתחומים משיקים שהמועמד/ת אולי לא חשב/ה עליהם, שבהם הניסיון והכישורים עשויים להיות רלוונטיים (למשל ניהול פרויקטים, תכנון, בקרה, שירות, ניתוח נתונים).
+העדף/י משרות שהמועמד/ת עשוי/ה לעמוד בדרישות הסף שלהן. אל תבחר/י משרות שאין להן קשר ממשי לניסיון או לכישורים.
 
 ## פרופיל המועמד/ת
 ${profileText}
@@ -185,52 +219,60 @@ ${catalog}`,
   });
 
   const seen = new Set<number>();
-  return (output as Screening).candidates
-    .sort((a, b) => b.relevance - a.relevance)
-    .map((c) => c.id)
-    .filter((id) => id >= 0 && id < positions.length && !seen.has(id) && seen.add(id))
-    .slice(0, limit);
+  const candidates = (output as Screening).candidates
+    .filter((c) => c.id >= 0 && c.id < positions.length && !seen.has(c.id) && seen.add(c.id))
+    .sort((a, b) => b.relevance - a.relevance);
+  const direct = candidates.filter((c) => c.kind === "direct");
+  const adjacent = candidates.filter((c) => c.kind === "adjacent");
+  const picked = adjacent.slice(0, adjacentSlots);
+  picked.push(...direct.slice(0, limit - picked.length));
+  picked.push(...adjacent.slice(adjacentSlots, adjacentSlots + limit - picked.length));
+  return picked.map((c) => ({ id: c.id, adjacent: c.kind === "adjacent" }));
 }
 
 async function scoreBatch(
   profileText: string,
-  batch: { id: number; position: PositionDetails }[],
+  batch: { id: number; position: PositionDetails; adjacent: boolean }[],
 ): Promise<MatchResult[]> {
   const { output } = await generateText({
     model: getModel(env.scoringModel),
     system: SYSTEM_PROMPT,
     output: Output.object({ schema: scoringSchema }),
-    prompt: `דרג/י את ההתאמה של המועמד/ת לכל אחת מהמשרות הבאות.
+    prompt: `בחן/י את ההתאמה של המועמד/ת לכל אחת מהמשרות הבאות, וסווג/י כל משרה לאחת הקטגוריות:
+- strong (התאמה מקצועית גבוהה): המשרה בתחום המקצועי של המועמד/ת, הניסיון והכישורים רלוונטיים ישירות, ונמצא בקורות החיים מידע תומך לדרישות המרכזיות. אין פער מהותי.
+- possible (התאמה מקצועית אפשרית): יש ניסיון או כישורים רלוונטיים, אבל חלק מהדרישות לא מופיעות בבירור בקורות החיים, או שהניסיון רלוונטי רק בחלקו.
+- discover (הזדמנות נוספת שכדאי להכיר): המשרה בתחום אחר או משיק לתחום העיקרי של המועמד/ת, אבל כישורים שזוהו בקורות החיים עשויים להיות רלוונטיים גם לה.
+- none: אין קשר ממשי בין המשרה לניסיון ולכישורים. משרות אלה לא יוצגו.
 
-כללי ציון:
-- 85-100: התאמה מצוינת – עומד/ת בכל דרישות הסף וניסיון רלוונטי ישיר
-- 70-84: התאמה טובה – עומד/ת בדרישות הסף, ניסיון רלוונטי חלקי
-- 45-69: התאמה חלקית – חסרה דרישה משמעותית או שהניסיון בתחום קרוב בלבד
-- 0-44: התאמה נמוכה – לא עומד/ת בדרישות סף מהותיות
-אם חסר תואר או רישיון שנדרש כדרישת סף – הציון לא יעלה על 55.
-הסיבות והפערים חייבים להיות ספציפיים (לציין את הניסיון/התואר הרלוונטי מקורות החיים ואת הדרישה במשרה).
+הנחיות:
+- whyRelevant: תקציר אישי וקצר בגוף שני, למשל: "התפקיד משלב תכנון תוכניות עבודה ובקרה. הניסיון שלך בניהול פרויקטים עשוי להיות רלוונטי לתחומי העיסוק האלה."
+- evidence: רק נתונים שמופיעים בפועל בקורות החיים.
+- checks: הדרישות המהותיות של המכרז (השכלה, שנות ניסיון, ניסיון ניהולי, רישיון). לכל דרישה:
+  - supported כשקורות החיים מראים בבירור שהדרישה מתקיימת.
+  - unclear כשלא נמצא מספיק מידע. זה אינו מעיד על אי-עמידה בדרישה. ב-note כתוב/כתבי מה נדרש ומה לא נמצא, למשל: "במכרז נדרשות שנתיים של ניסיון ניהולי. לא נמצא בקורות החיים מידע מספק לגבי ניסיון זה."
+  - gap כשקורות החיים מראים שהדרישה אינה מתקיימת (למשל תואר או רישיון חובה שאינו קיים, או מעט מדי שנות ניסיון).
+- score: 0-100, לסידור המשרות בתוך הקטגוריה.
 
 ## פרופיל המועמד/ת
 ${profileText}
 
 ## משרות
-${batch.map(({ id, position }) => positionBlock(position, id)).join("\n\n")}`,
+${batch.map(({ id, position, adjacent }) => positionBlock(position, id, adjacent)).join("\n\n")}`,
   });
 
   const byId = new Map(batch.map((b) => [b.id, b.position]));
   return (output as Scoring).results.flatMap((r) => {
     const position = byId.get(r.id);
-    if (!position) return [];
+    if (!position || r.category === "none") return [];
     byId.delete(r.id);
     return [
       {
         position: stripDetails(position),
+        category: r.category,
         score: Math.max(0, Math.min(100, r.score)),
-        fitLevel: r.fitLevel,
-        meetsThreshold: r.meetsThreshold,
-        summary: r.summary,
-        reasons: r.reasons,
-        gaps: r.gaps,
+        whyRelevant: r.whyRelevant,
+        evidence: r.evidence.slice(0, 3),
+        checks: r.checks.slice(0, 4),
       },
     ];
   });
@@ -245,6 +287,7 @@ function toCandidateProfile(p: Profile): CandidateProfile {
     seniority: p.seniority,
     education: p.education,
     skills: p.skills,
+    licenses: p.licenses,
     languages: p.languages,
     domains: p.domains,
     preferredLocations: p.preferredLocations,
@@ -261,21 +304,22 @@ export async function* matchCv(cv: CvInput, filters: MatchFilters): AsyncGenerat
   yield { type: "stage", stage: "profiling", message: "מנתח את קורות החיים…" };
   const [profile, catalog] = await Promise.all([extractProfile(cv), getOpenPositions()]);
   if (!profile.isResume) {
-    throw new MatchError("הקובץ שהועלה לא נראה כמו קורות חיים. נא להעלות קובץ קורות חיים");
+    throw new MatchError("הקובץ שהועלה לא נראה כמו קורות חיים", 400, "file");
   }
   yield { type: "profile", profile: toCandidateProfile(profile) };
 
   const positions = applyFilters(catalog.positions, filters);
   if (positions.length === 0) {
-    throw new MatchError("לא נמצאו משרות פתוחות שעונות על הסינון שנבחר");
+    yield { type: "result", matches: [], totalPositions: 0, screened: 0, model: env.scoringModel };
+    return;
   }
 
   const profileText = profileToText(profile, filters);
   const limit = env.shortlistSize;
 
-  let shortlist: number[];
+  let shortlist: ShortlistItem[];
   if (positions.length <= limit) {
-    shortlist = positions.map((_, i) => i);
+    shortlist = positions.map((_, id) => ({ id, adjacent: false }));
   } else {
     yield {
       type: "stage",
@@ -295,19 +339,18 @@ export async function* matchCv(cv: CvInput, filters: MatchFilters): AsyncGenerat
     stage: "scoring",
     message: `מדרג ${shortlist.length} משרות מתאימות לעומק…`,
   };
-  const items = shortlist.map((id) => ({ id, position: positions[id]! }));
+  const items = shortlist.map(({ id, adjacent }) => ({ id, adjacent, position: positions[id]! }));
   const batches: (typeof items)[] = [];
   for (let i = 0; i < items.length; i += SCORING_BATCH_SIZE) {
     batches.push(items.slice(i, i + SCORING_BATCH_SIZE));
   }
   const settled = await Promise.allSettled(batches.map((b) => scoreBatch(profileText, b)));
-  const matches = settled.flatMap((s) => (s.status === "fulfilled" ? s.value : []));
-  if (matches.length === 0) {
-    const firstError = settled.find((s): s is PromiseRejectedResult => s.status === "rejected");
-    throw firstError?.reason ?? new MatchError("הדירוג נכשל", 502);
+  if (settled.every((s) => s.status === "rejected")) {
+    throw (settled[0] as PromiseRejectedResult).reason ?? new MatchError("הדירוג נכשל", 502);
   }
+  const matches = settled.flatMap((s) => (s.status === "fulfilled" ? s.value : []));
 
-  matches.sort((a, b) => b.score - a.score);
+  matches.sort((a, b) => CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category] || b.score - a.score);
   yield {
     type: "result",
     matches,

@@ -1,34 +1,38 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, shallowRef, watch } from "vue";
-import { ExclamationCircleIcon } from "@heroicons/vue/20/solid";
-import type { MatchFilters, MatchResult, Position } from "@sigma/shared";
+import type { MatchFilters, Position } from "@sigma/shared";
+import AboutSection from "./components/AboutSection.vue";
 import AppFooter from "./components/AppFooter.vue";
 import AppHeader from "./components/AppHeader.vue";
 import CtaBanner from "./components/CtaBanner.vue";
 import HeroSection from "./components/HeroSection.vue";
 import HowItWorksSection from "./components/HowItWorksSection.vue";
-import MatchProgress from "./components/MatchProgress.vue";
-import PositionDialog from "./components/PositionDialog.vue";
-import ProfileCard from "./components/ProfileCard.vue";
-import ResultsTable from "./components/ResultsTable.vue";
-import StatsBand from "./components/StatsBand.vue";
-import TransparencySection from "./components/TransparencySection.vue";
+import InfoDialog from "./components/InfoDialog.vue";
+import MatchExampleSection from "./components/MatchExampleSection.vue";
+import ResultsView from "./components/ResultsView.vue";
+import SystemMessage from "./components/SystemMessage.vue";
 import { useMatch } from "./composables/useMatch";
 import { fetchPositions } from "./lib/api";
+import { type InfoTopic, sortLevels } from "./lib/format";
 
 const file = ref<File | null>(null);
-const filters = ref<MatchFilters>({ publicOnly: true });
-const positions = shallowRef<Position[] | null>(null);
-const selected = shallowRef<MatchResult | null>(null);
-const resultsAnchor = ref<HTMLElement>();
+const filters = ref<MatchFilters>({ audience: "public" });
+const positions = shallowRef<Position[]>([]);
+const infoTopic = ref<InfoTopic | null>(null);
 
-const { status, stage, stageMessage, profile, matches, totalPositions, error, run, reset } = useMatch();
+const { status, stage, stageMessage, profile, matches, error, errorCode, run, reset } = useMatch();
 
-const areas = computed(() => [...new Set((positions.value ?? []).map((p) => p.area).filter(Boolean))]);
-const offices = computed(() =>
-  positions.value ? new Set(positions.value.map((p) => p.officeName)).size : null,
-);
 const running = computed(() => status.value === "running");
+const view = computed(() => {
+  if (status.value === "done") return matches.value.length ? "results" : "empty";
+  if (status.value === "error") return errorCode.value;
+  return "landing";
+});
+
+const sorted = (values: string[]) => [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "he"));
+const areas = computed(() => sorted(positions.value.map((p) => p.area)));
+const fields = computed(() => sorted(positions.value.flatMap((p) => p.fields)));
+const levels = computed(() => sortLevels([...new Set(positions.value.map((p) => p.level).filter(Boolean))]));
 
 onMounted(async () => {
   try {
@@ -40,23 +44,27 @@ onMounted(async () => {
 
 async function submit() {
   if (!file.value || running.value) return;
-  await nextTick();
-  resultsAnchor.value?.scrollIntoView({ behavior: "smooth", block: "start" });
   await run(file.value, filters.value);
 }
 
+async function goToForm() {
+  if (view.value !== "landing") reset();
+  await nextTick();
+  document.getElementById("upload")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function startOver() {
-  reset();
   file.value = null;
-  goToUpload();
+  goToForm();
 }
 
-function goToUpload() {
-  document.getElementById("upload")?.scrollIntoView({ behavior: "smooth", block: "center" });
+function goHome() {
+  if (view.value !== "landing") reset();
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-watch(status, (s) => {
-  if (s === "done") nextTick(() => resultsAnchor.value?.scrollIntoView({ behavior: "smooth", block: "start" }));
+watch(view, (next, prev) => {
+  if (next !== prev && next !== "landing") nextTick(() => window.scrollTo({ top: 0 }));
 });
 </script>
 
@@ -65,46 +73,47 @@ watch(status, (s) => {
     <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:start-2 focus:top-2 focus:z-50 focus:bg-white focus:p-2">
       דלג לתוכן המרכזי
     </a>
-    <AppHeader />
+    <AppHeader @home="goHome" />
 
     <main id="main" class="flex-1">
-      <HowItWorksSection />
-      <TransparencySection @cta="goToUpload" />
-      <CtaBanner @cta="goToUpload" />
+      <template v-if="view === 'landing'">
+        <HeroSection
+          v-model:file="file"
+          v-model:filters="filters"
+          :areas="areas"
+          :fields="fields"
+          :levels="levels"
+          :running="running"
+          :stage="stage"
+          :stage-message="stageMessage"
+          @submit="submit"
+        />
+        <HowItWorksSection />
+        <MatchExampleSection />
+        <CtaBanner @cta="goToForm" />
+        <AboutSection @privacy="infoTopic = 'privacy'" />
+      </template>
 
-      <HeroSection v-model:file="file" v-model:filters="filters" :areas="areas" :running="running" @submit="submit" />
+      <ResultsView
+        v-else-if="view === 'results'"
+        :profile="profile"
+        :matches="matches"
+        :filters="filters"
+        @change="goToForm"
+        @restart="startOver"
+      />
 
-      <StatsBand v-if="status === 'idle'" :open-positions="positions ? positions.length : null" :offices="offices" />
-
-      <div v-else ref="resultsAnchor" class="mx-auto max-w-[1190px] scroll-mt-24 space-y-8 px-4 py-10 md:py-14">
-        <MatchProgress v-if="running" :stage="stage" :message="stageMessage" />
-
-        <div v-if="status === 'error'" role="alert" class="card flex items-start gap-3 border-s-4 border-highlight-500 p-5">
-          <ExclamationCircleIcon class="size-6 shrink-0 text-highlight-600" aria-hidden="true" />
-          <div class="flex-1">
-            <p class="font-bold text-primary-900">לא הצלחנו להשלים את ההתאמה</p>
-            <p class="text-black/70">{{ error }}</p>
-          </div>
-          <button type="button" class="btn-secondary !py-2 text-sm" :disabled="!file" @click="submit">נסו שוב</button>
-        </div>
-
-        <ProfileCard v-if="profile" :profile="profile" />
-
-        <template v-if="status === 'done'">
-          <ResultsTable v-if="matches.length" :matches="matches" :total-positions="totalPositions" @details="selected = $event" />
-          <div v-else class="card p-10 text-center">
-            <p class="text-lg font-bold text-primary-900">לא נמצאו משרות מתאימות כרגע</p>
-            <p class="mt-1 text-black/60">נסו להסיר סינונים או לחזור בעוד כמה ימים – משרות חדשות מתפרסמות כל הזמן.</p>
-          </div>
-        </template>
-
-        <div v-if="status !== 'running'" class="text-center">
-          <button type="button" class="btn-secondary" @click="startOver">התאמה לקורות חיים אחרים</button>
-        </div>
-      </div>
+      <SystemMessage
+        v-else
+        :kind="view"
+        :detail="error?.replace(/\.\s*$/, '')"
+        @home="goHome"
+        @upload="startOver"
+        @retry="submit"
+      />
     </main>
 
-    <AppFooter />
-    <PositionDialog :match="selected" @close="selected = null" />
+    <AppFooter @info="infoTopic = $event" />
+    <InfoDialog :topic="infoTopic" @close="infoTopic = null" />
   </div>
 </template>

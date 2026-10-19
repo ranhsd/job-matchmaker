@@ -1,55 +1,122 @@
-import type { FitLevel, ThresholdStatus } from "@sigma/shared";
+import type { CheckStatus, JobScope, MatchCategory, MatchFilters, Position } from "@sigma/shared";
+
+export const OFFICIAL_SITE = "https://merkava.mrp.gov.il/giusp/index.html#/";
+
+export type InfoTopic = "privacy" | "accessibility";
 
 const dateFormatter = new Intl.DateTimeFormat("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" });
-const currency = new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS", maximumFractionDigits: 0 });
 
 export function formatDate(iso: string | null): string {
   return iso ? dateFormatter.format(new Date(iso)) : "—";
 }
 
-export function formatSalary(min: number | null, max: number | null): string | null {
-  if (!min && !max) return null;
-  if (min && max && min !== max) return `${currency.format(min)} – ${currency.format(max)}`;
-  return currency.format((min ?? max)!);
+export function jobScopeLabel(p: Position): string {
+  return p.jobPercent >= 100 ? "משרה מלאה" : `משרה חלקית (${p.jobPercent}%)`;
 }
 
-export function daysLeftLabel(days: number | null): string {
-  if (days === null) return "";
-  if (days === 0) return "היום אחרון";
-  if (days === 1) return "יום אחרון מחר";
-  return `${days} ימים להגשה`;
+export function tenderTypeLabel(p: Position): string {
+  return p.isPublic ? "מכרז פומבי" : "מכרז לעובדי מדינה";
 }
 
-export const FIT_LABELS: Record<FitLevel, string> = {
-  excellent: "התאמה מצוינת",
-  good: "התאמה טובה",
-  partial: "התאמה חלקית",
-  low: "התאמה נמוכה",
+export const JOB_SCOPE_LABELS: Record<JobScope, string> = {
+  full: "משרה מלאה",
+  partial: "משרה חלקית",
 };
 
-export const THRESHOLD_LABELS: Record<ThresholdStatus, string> = {
-  yes: "עומד/ת בדרישות הסף",
-  partial: "עומד/ת חלקית",
-  no: "לא עומד/ת בדרישות הסף",
-  unknown: "לא ניתן לקבוע",
+const LEVEL_ORDER = ["משרה תחילית", "משרה תחילית מתקדמת", "משרת ביניים", "משרת ניהול תחום", "משרת ניהול בכיר"];
+
+export function sortLevels(levels: string[]): string[] {
+  const rank = (level: string) => {
+    const i = LEVEL_ORDER.indexOf(level);
+    return i === -1 ? LEVEL_ORDER.length : i;
+  };
+  return [...levels].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b, "he"));
+}
+
+export function preferenceChips(filters: MatchFilters): string[] {
+  return [
+    filters.area ?? "כל הארץ",
+    filters.jobScope ? JOB_SCOPE_LABELS[filters.jobScope] : "כל ההיקפים",
+    filters.field ?? "כל התחומים",
+    ...(filters.level ? [filters.level] : []),
+    filters.audience === "employees" ? "מכרזים לעובדי מדינה" : "מכרזים פומביים",
+  ];
+}
+
+interface CategoryMeta {
+  label: string;
+  shortLabel: string;
+  title: string;
+  description: string;
+  badge: string;
+  dot: string;
+}
+
+export const CATEGORIES: Record<MatchCategory, CategoryMeta> = {
+  strong: {
+    label: "התאמה מקצועית גבוהה",
+    shortLabel: "התאמה גבוהה",
+    title: "רלוונטיות לניסיון שלך",
+    description: "משרות עם התאמה מקצועית גבוהה לניסיון ולכישורים שזוהו בקורות החיים.",
+    badge: "bg-emerald-50 text-emerald-800",
+    dot: "bg-emerald-600",
+  },
+  possible: {
+    label: "התאמה מקצועית אפשרית",
+    shortLabel: "התאמה אפשרית",
+    title: "משרות שכדאי לבדוק",
+    description: "משרות שבהן זוהתה התאמה מקצועית אפשרית, לצד מידע נוסף שכדאי לברר.",
+    badge: "bg-accent-50 text-accent-700",
+    dot: "bg-accent-500",
+  },
+  discover: {
+    label: "הזדמנות נוספת שכדאי להכיר",
+    shortLabel: "הזדמנות נוספת",
+    title: "אפשרויות שאולי לא חשבת עליהן",
+    description: "משרות בתחומים משיקים שבהם הניסיון והכישורים שלך עשויים להיות רלוונטיים.",
+    badge: "bg-highlight-50 text-highlight-700",
+    dot: "bg-highlight-600",
+  },
 };
 
-export function scoreColor(score: number): { ring: string; text: string; bg: string } {
-  if (score >= 85) return { ring: "#1a8754", text: "text-emerald-700", bg: "bg-emerald-50" };
-  if (score >= 70) return { ring: "#0574d6", text: "text-accent-600", bg: "bg-accent-50" };
-  if (score >= 45) return { ring: "#d98a00", text: "text-amber-700", bg: "bg-amber-50" };
-  return { ring: "#8a94a6", text: "text-slate-600", bg: "bg-slate-100" };
+export const CATEGORY_ORDER: MatchCategory[] = ["strong", "possible", "discover"];
+
+interface CheckMeta {
+  label: string;
+  legend: string;
+  box: string;
+  title: string;
+  icon: string;
 }
 
-export function thresholdClasses(status: ThresholdStatus): string {
-  switch (status) {
-    case "yes":
-      return "bg-emerald-50 text-emerald-800 ring-emerald-200";
-    case "partial":
-      return "bg-amber-50 text-amber-800 ring-amber-200";
-    case "no":
-      return "bg-highlight-50 text-highlight-600 ring-highlight-100";
-    default:
-      return "bg-slate-100 text-slate-700 ring-slate-200";
-  }
-}
+export const CHECKS: Record<CheckStatus, CheckMeta> = {
+  supported: {
+    label: "זוהה מידע תומך",
+    legend: "זוהה מידע תומך",
+    box: "bg-emerald-50",
+    title: "text-emerald-800",
+    icon: "bg-emerald-100 text-emerald-700",
+  },
+  unclear: {
+    label: "לא נמצא מספיק מידע",
+    legend: "לא נמצא מספיק מידע – אינו מעיד על אי־עמידה בדרישות",
+    box: "bg-amber-50",
+    title: "text-amber-800",
+    icon: "bg-amber-100 text-amber-700",
+  },
+  gap: {
+    label: "זוהה פער מהותי",
+    legend: "זוהה פער מהותי",
+    box: "bg-red-50",
+    title: "text-red-700",
+    icon: "bg-red-100 text-red-700",
+  },
+};
+
+export const CHECK_ORDER: CheckStatus[] = ["supported", "unclear", "gap"];
+
+export const UNCLEAR_ADVICE = "אם יש לך ניסיון רלוונטי שלא פורט בקובץ, כדאי לוודא שהוא מוצג במסגרת הגשת המועמדות.";
+
+export const MATCH_DISCLAIMER = "ההתאמה מבוססת על המידע בקורות החיים ואינה מהווה אישור לעמידה בתנאי הסף.";
+
+export const ACCEPTED_FORMATS = "PDF, DOCX, TXT או תמונה | עד 4MB";

@@ -19,7 +19,7 @@ export interface Position {
   publicationType: string;
   isPublic: boolean;
   isHot: boolean;
-  /** e.g. "משרה תחילית", "משרת ניהול תחום" */
+  /** e.g. "משרה תחילית", "משרת ניהול תחום". Empty for most internal tenders. */
   level: string;
   /** Salary scale, e.g. "מח"ר" or "031 רופאים" */
   jobRating: string;
@@ -32,6 +32,8 @@ export interface Position {
   publicationDate: string | null;
   lastSubmissionDate: string | null;
   daysLeft: number | null;
+  /** Professional fields the site tags the position with, e.g. "חוק ומשפט" */
+  fields: string[];
   tags: string[];
   logo: string | null;
   url: string;
@@ -57,35 +59,71 @@ export interface CandidateProfile {
   seniority: string;
   education: string[];
   skills: string[];
+  licenses: string[];
   languages: string[];
   domains: string[];
   preferredLocations: string[];
 }
 
-export type FitLevel = "excellent" | "good" | "partial" | "low";
-export type ThresholdStatus = "yes" | "partial" | "no" | "unknown";
+/**
+ * - `strong`: high professional fit to the experience and skills in the CV
+ * - `possible`: a possible fit, with requirements worth checking
+ * - `discover`: an adjacent field where the candidate's skills may be relevant
+ */
+export type MatchCategory = "strong" | "possible" | "discover";
+
+/**
+ * - `supported`: the CV supports the requirement
+ * - `unclear`: not enough information in the CV, which does not mean the requirement is unmet
+ * - `gap`: the CV shows a material gap
+ */
+export type CheckStatus = "supported" | "unclear" | "gap";
+
+export interface RequirementCheck {
+  status: CheckStatus;
+  requirement: string;
+  note: string;
+}
 
 export interface MatchResult {
   position: Position;
-  /** 0-100, higher is a better fit */
+  category: MatchCategory;
+  /** 0-100, orders matches within a category */
   score: number;
-  fitLevel: FitLevel;
-  /** Does the candidate meet the formal threshold requirements (דרישות סף)? */
-  meetsThreshold: ThresholdStatus;
-  summary: string;
-  reasons: string[];
-  gaps: string[];
+  /** Why the position is worth knowing about, tied to the CV */
+  whyRelevant: string;
+  /** Facts identified in the CV that support the match */
+  evidence: string[];
+  /** Material requirements of the tender and what the CV shows about each */
+  checks: RequirementCheck[];
 }
 
+/**
+ * - `public`: public tenders only
+ * - `employees`: every tender a civil servant can apply to (internal, inter-office and public)
+ */
+export type TenderAudience = "public" | "employees";
+export type JobScope = "full" | "partial";
+
 export interface MatchFilters {
-  publicOnly?: boolean;
-  areas?: string[];
-  minJobPercent?: number;
-  /** Free-text preferences from the user, e.g. "מעדיף עבודה בירושלים" */
+  audience?: TenderAudience;
+  area?: string;
+  jobScope?: JobScope;
+  field?: string;
+  level?: string;
+  /** Free-text preferences from the user, e.g. "עבודה היברידית" */
   notes?: string;
 }
 
 export type MatchStage = "parsing" | "profiling" | "screening" | "scoring" | "done";
+
+/** `file`: the CV could not be read. `search`: matching failed or is temporarily unavailable. */
+export type MatchErrorCode = "file" | "search";
+
+export interface ApiError {
+  error: string;
+  code: MatchErrorCode;
+}
 
 export type MatchEvent =
   | { type: "stage"; stage: MatchStage; message: string }
@@ -97,4 +135,4 @@ export type MatchEvent =
       screened: number;
       model: string;
     }
-  | { type: "error"; message: string };
+  | { type: "error"; code: MatchErrorCode; message: string };

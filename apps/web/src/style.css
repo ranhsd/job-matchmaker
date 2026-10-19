@@ -1,43 +1,45 @@
 @import "tailwindcss";
 
-/* Design tokens taken from the Civil Service recruitment site (merkava.mrp.gov.il/giusp) */
+/* Design tokens taken from the התאמה בקליק mockup */
 @theme {
   --font-sans: "Rubik", "Segoe UI", Tahoma, Arial, sans-serif;
 
-  --color-primary-50: #f4f8fd;
-  --color-primary-100: #eef6ff;
-  --color-primary-200: #d5e4f5;
-  --color-primary-300: #8ea8cc;
-  --color-primary-400: #5a7496;
-  --color-primary-500: #426a9a;
-  --color-primary-600: #1f4a7d;
-  --color-primary-700: #12385f;
-  --color-primary-800: #0c3058;
-  --color-primary-900: #0c2e4b;
-  --color-primary-950: #001a34;
+  --color-primary-50: #f6f7fb;
+  --color-primary-100: #eef1f8;
+  --color-primary-200: #dbe2f0;
+  --color-primary-300: #a9b6d3;
+  --color-primary-400: #6c7c98;
+  --color-primary-500: #4a5f8f;
+  --color-primary-600: #2f4d92;
+  --color-primary-700: #24448a;
+  --color-primary-800: #1d3f86;
+  --color-primary-900: #183b80;
+  --color-primary-950: #102a62;
 
-  --color-accent-50: #e8f3fd;
-  --color-accent-500: #0574d6;
-  --color-accent-600: #005cba;
+  --color-accent-50: #ebf1fd;
+  --color-accent-100: #dbe6fb;
+  --color-accent-500: #3870e0;
+  --color-accent-600: #2d5fcc;
+  --color-accent-700: #244fb0;
 
-  --color-highlight-50: #fdeef4;
-  --color-highlight-100: #fbd9e7;
-  --color-highlight-300: #f8b7d5;
-  --color-highlight-500: #ea4a88;
-  --color-highlight-600: #e01a66;
+  --color-highlight-50: #fdedf4;
+  --color-highlight-100: #fadbe8;
+  --color-highlight-300: #ee92bd;
+  --color-highlight-500: #e3438c;
+  --color-highlight-600: #dc3080;
+  --color-highlight-700: #b8226a;
 
-  --color-sky-soft: #7ed8f3;
-  --color-surface: #eef2fb;
+  --color-surface: #f4f5f9;
 
-  --radius-gov: 4px;
-  --shadow-header: 0 0 3px 0 rgb(0 0 0 / 0.16);
-  --shadow-card: 0 2px 10px 0 rgb(12 46 75 / 0.08);
-  --shadow-float: 0 24px 60px -20px rgb(0 26 52 / 0.45);
+  --radius-gov: 6px;
+  --shadow-header: 0 1px 0 0 rgb(24 59 128 / 0.08);
+  --shadow-card: 0 4px 24px -8px rgb(24 59 128 / 0.14);
+  --shadow-float: 0 30px 70px -24px rgb(8 22 60 / 0.55);
 }
 
 @layer base {
   html {
-    @apply bg-primary-50 text-black/85 antialiased;
+    @apply bg-surface text-black/85 antialiased;
   }
 
   :focus-visible {
@@ -47,34 +49,38 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary-900 px-6 py-3 text-[15px] font-bold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-primary-200 disabled:text-primary-400;
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-accent-500 px-6 py-3 text-[15px] font-bold text-white transition hover:bg-accent-600 disabled:cursor-not-allowed disabled:bg-primary-200 disabled:text-primary-400;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-primary-900 bg-white px-5 py-2.5 text-[15px] font-medium text-primary-900 transition hover:bg-primary-100;
-  }
-
-  .btn-accent {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-accent-600 px-6 py-3 text-[15px] font-bold text-white transition hover:bg-accent-500;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-accent-500/40 bg-white px-5 py-2.5 text-[15px] font-bold text-accent-600 transition hover:border-accent-500 hover:bg-accent-50;
   }
 
   .btn-pill {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-highlight-600 px-7 py-3 text-[15px] font-bold text-white shadow-[0_8px_20px_-8px_rgb(224_26_102/0.6)] transition hover:bg-highlight-500;
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-highlight-600 px-7 py-3 text-[15px] font-bold text-white shadow-[0_10px_24px_-10px_rgb(220_48_128/0.7)] transition hover:bg-highlight-700;
   }
 
   .card {
-    @apply rounded-xl bg-white shadow-card;
+    @apply rounded-2xl bg-white shadow-card;
   }
 
   .chip {
-    @apply inline-flex items-center rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-medium text-primary-800;
+    @apply inline-flex items-center rounded-md bg-primary-100 px-2.5 py-1 text-xs font-medium text-primary-900;
   }
 
   .eyebrow {
-    @apply text-sm font-bold text-accent-600;
+    @apply text-sm font-bold text-highlight-600;
   }
 
   .section-title {
-    @apply text-2xl font-extrabold text-primary-900 md:text-[35px] md:leading-tight;
+    @apply text-[28px] font-extrabold leading-tight text-primary-900 md:text-[36px];
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-sm font-medium text-primary-900;
+  }
+
+  .field-control {
+    @apply w-full rounded-lg border border-primary-300/80 bg-white px-3 py-2.5 text-sm text-black/80 transition placeholder:text-black/40 hover:border-primary-500 focus:border-accent-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60;
   }
 }

@@ -103,9 +103,10 @@ function daysUntil(iso: string | null): number | null {
 
 function toPosition(raw: RawTender): Position {
   const lastSubmissionDate = parseODataDate(raw.LastSubmittingDate);
-  const tags = [raw.Tags1, raw.Tags2, raw.Tags3, raw.Tags4, raw.Tags5, raw.ClusterName]
+  const fields = [raw.Tags1, raw.Tags2, raw.Tags3, raw.Tags4, raw.Tags5]
     .map((t) => t?.trim())
     .filter((t): t is string => Boolean(t));
+  const cluster = raw.ClusterName?.trim();
 
   return {
     tenderNumber: raw.TenderNumber,
@@ -130,7 +131,8 @@ function toPosition(raw: RawTender): Position {
     publicationDate: parseODataDate(raw.TenderPublicationDate),
     lastSubmissionDate,
     daysLeft: daysUntil(lastSubmissionDate),
-    tags: [...new Set(tags)],
+    fields: [...new Set(fields)],
+    tags: [...new Set(cluster ? [...fields, cluster] : fields)],
     logo: raw.Logo ? raw.Logo.replace("https://MERKAVA.MRP.GOV.IL:443", "https://merkava.mrp.gov.il") : null,
     url: `${POSITION_URL}${raw.RequestId}`,
   };

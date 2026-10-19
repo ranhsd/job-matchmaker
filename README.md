@@ -1,6 +1,6 @@
 # התאמה בקליק – התאמת משרות בשירות המדינה לקורות חיים
 
-Upload a CV (PDF / DOCX / TXT / image) and get the open Israeli Civil Service positions that fit it best, ranked with a match score, a threshold-requirements check, and a Hebrew explanation of why each position fits and what may be missing.
+Upload a CV (PDF / DOCX / TXT / image), optionally narrow the search by tender type, area, job scope, professional field and job level, and get the open Israeli Civil Service positions that fit it. Results are grouped into three categories: positions relevant to the candidate's experience, positions worth checking, and opportunities in adjacent fields. Each position comes with a Hebrew explanation of why it is relevant, what was found in the CV, and which requirements are worth checking before applying.
 
 Positions are read live from the public OData API behind the Civil Service recruitment site ([merkava.mrp.gov.il/giusp](https://merkava.mrp.gov.il/giusp/index.html#/)). This project is not affiliated with the Civil Service Commission.
 
@@ -9,7 +9,7 @@ Positions are read live from the public OData API behind the Civil Service recru
 | Layer | Tech |
 | --- | --- |
 | Monorepo | Turborepo + pnpm workspaces |
-| Frontend | Vue 3, Vite, Tailwind CSS v4, Headless UI, Heroicons – Hebrew / RTL, styled after the gov recruitment site (Rubik, navy `#0c2e4b`, accent `#0574d6`) |
+| Frontend | Vue 3, Vite, Tailwind CSS v4, Headless UI, Heroicons – Hebrew / RTL, following the "התאמה בקליק" mockup (Rubik, navy `#183b80`, blue `#3870e0`, magenta `#dc3080`) |
 | Backend | Node.js + Hono (streams progress as NDJSON) |
 | LLM | Google Gemini `gemini-3.5-flash-lite` via `@ai-sdk/google` |
 | Hosting | Firebase Hosting (UI) and Cloud Run (API) on `sigma-matchmaker-dev` in `me-west1` |
@@ -29,8 +29,10 @@ firebase.json Firebase Hosting config (apps/web/dist)
 The pipeline reads **every** open position while keeping cost low:
 
 1. **Profile** – Gemini reads the CV and extracts a structured profile (education, years of experience, skills, licenses, domains). PDFs and images are sent to Gemini as-is, which handles Hebrew/RTL PDFs far better than text extraction. DOCX is converted with `mammoth`.
-2. **Screening** – one large-context call sees a compact line for every open position (title, office, location, grade, tags, threshold requirements) and picks the ~24 most relevant.
-3. **Scoring** – the shortlist is scored in parallel batches using the full job description and requirements. Each result gets a 0–100 score, fit level, whether the threshold requirements (דרישות סף) are met, reasons, and gaps.
+2. **Screening** – the positions that pass the user's filters are listed to one large-context call as compact lines (title, office, location, grade, professional fields, threshold requirements). It picks the ~24 most relevant, reserving about a third of the slots for positions in adjacent fields.
+3. **Scoring** – the shortlist is scored in parallel batches using the full job description and requirements. Each position is classified as `strong` (high professional fit), `possible` (fit, with things to verify), `discover` (an adjacent field worth knowing) or dropped. Each kept result has a short "why it's relevant" text, up to three pieces of evidence from the CV, and up to four requirement checks marked `supported`, `unclear` (not enough information in the CV, which does not mean the requirement is unmet) or `gap`.
+
+If no position passes the filters, the stream ends with an empty result and the site shows the "no matches" message.
 
 ### Why Gemini 3.5 Flash-Lite
 
@@ -68,7 +70,13 @@ Notes:
 | `GET` | `/api/positions/:requestId` | One position, with description, requirements and remarks |
 | `POST` | `/api/match` | `multipart/form-data` with `file` (CV) and optional `filters` (JSON). Streams NDJSON events: `stage`, `profile`, `result`, `error` |
 
-`filters`: `{ "publicOnly": true, "areas": ["ירושלים"], "minJobPercent": 100, "notes": "free text preferences" }`
+`filters` (all optional): `{ "audience": "public" | "employees", "area": "ירושלים", "jobScope": "full" | "partial", "field": "כלכלה", "level": "משרת ביניים", "notes": "free text preferences" }`
+
+- `audience`: `public` (default) keeps public tenders only. `employees` includes internal tenders too, because civil servants can also apply to public ones.
+- `jobScope`: `full` is a 100% position, `partial` is anything below.
+- `field` matches the position's professional fields (`Tags1`–`Tags5`) and `level` matches `LevelName`. About half the positions have no level, so choosing a level excludes them.
+
+Errors carry a `code`: `file` when the CV could not be read or does not look like a CV, and `search` for anything else (rate limits, model or upstream failures). HTTP errors return `{ "error", "code" }` and stream errors send `{ "type": "error", "code", "message" }`.
 
 ## Local development
 
@@ -94,6 +102,13 @@ Other scripts: `pnpm build`, `pnpm typecheck`.
 | `MATCH_SHORTLIST_SIZE` | `24` | Positions scored in depth |
 | `RATE_LIMIT_PER_HOUR` | `10` | Matches per IP per hour (per Cloud Run instance) |
 | `ALLOWED_ORIGINS` | unset | Comma-separated browser origins. Required in production so Firebase Hosting can call Cloud Run. |
+
+### Environment variables (web, build time)
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `VITE_API_URL` | `/api` | API base URL. The deploy workflow sets it to the Cloud Run URL. |
+| `VITE_SURVEY_URL` | unset | Link for the feedback survey card under the results. The card is hidden when unset. The deploy workflow reads it from the `SURVEY_URL` repository variable. |
 
 ## Deploying
 

@@ -1,6 +1,6 @@
 import { ref, shallowRef } from "vue";
-import type { CandidateProfile, MatchFilters, MatchResult, MatchStage } from "@sigma/shared";
-import { streamMatch } from "../lib/api";
+import type { CandidateProfile, MatchErrorCode, MatchFilters, MatchResult, MatchStage } from "@sigma/shared";
+import { RequestError, streamMatch } from "../lib/api";
 
 export type MatchStatus = "idle" | "running" | "done" | "error";
 
@@ -11,8 +11,8 @@ export function useMatch() {
   const profile = shallowRef<CandidateProfile | null>(null);
   const matches = shallowRef<MatchResult[]>([]);
   const totalPositions = ref(0);
-  const screened = ref(0);
   const error = ref<string | null>(null);
+  const errorCode = ref<MatchErrorCode>("search");
   let controller: AbortController | null = null;
 
   function reset() {
@@ -30,7 +30,7 @@ export function useMatch() {
     controller = new AbortController();
     status.value = "running";
     stage.value = "parsing";
-    stageMessage.value = "מעלה את הקובץ…";
+    stageMessage.value = "מעלים את הקובץ…";
 
     try {
       for await (const event of streamMatch(file, filters, controller.signal)) {
@@ -45,21 +45,21 @@ export function useMatch() {
           case "result":
             matches.value = event.matches;
             totalPositions.value = event.totalPositions;
-            screened.value = event.screened;
             stage.value = "done";
             status.value = "done";
             break;
           case "error":
-            throw new Error(event.message);
+            throw new RequestError(event.message, event.code);
         }
       }
-      if (status.value !== "done") throw new Error("החיבור לשרת נותק לפני שהתקבלו תוצאות. נסו שוב");
+      if (status.value !== "done") throw new RequestError("החיבור לשרת נותק לפני שהתקבלו תוצאות");
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
-      error.value = (err as Error).message || "אירעה שגיאה";
+      error.value = (err as Error).message || null;
+      errorCode.value = err instanceof RequestError ? err.code : "search";
       status.value = "error";
     }
   }
 
-  return { status, stage, stageMessage, profile, matches, totalPositions, screened, error, run, reset };
+  return { status, stage, stageMessage, profile, matches, totalPositions, error, errorCode, run, reset };
 }

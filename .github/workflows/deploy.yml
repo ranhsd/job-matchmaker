@@ -118,6 +118,7 @@ jobs:
       - name: Build the website
         env:
           VITE_API_URL: ${{ steps.api.outputs.url }}/api
+          VITE_SURVEY_URL: ${{ vars.SURVEY_URL }}
         run: |
           pnpm install --frozen-lockfile
           pnpm turbo run build --filter=@sigma/web
