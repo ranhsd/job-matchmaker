@@ -40,27 +40,29 @@ jobs:
           python3 - <<'PY'
           import json, os, sys
           data = json.loads(os.environ["GCP_USER_CREDENTIALS"])
-          required = ("client_id", "client_secret", "refresh_token", "rapt_token")
+          required = ("client_id", "client_secret", "refresh_token")
           missing = [key for key in required if not data.get(key)]
           if missing:
               print("GCP_USER_CREDENTIALS is missing: " + ", ".join(missing))
-              print("Run gcloud auth login mrkcaptcha@merkava.gov.il and update the secret, including rapt_token.")
+              print("Run gcloud auth login mrkcaptcha@merkava.gov.il and update the secret.")
               sys.exit(1)
+          # A fresh login's refresh token works alone until the Workspace reauth period ends;
+          # a token refreshed through gcloud reauth needs the rapt_token from that reauth.
+          creds = {
+              "type": "authorized_user",
+              "client_id": data["client_id"],
+              "client_secret": data["client_secret"],
+              "refresh_token": data["refresh_token"],
+              "quota_project_id": "sigma-matchmaker-dev",
+          }
+          if data.get("rapt_token"):
+              creds["rapt_token"] = data["rapt_token"]
           for key in ("client_secret", "refresh_token", "rapt_token"):
-              print(f"::add-mask::{data[key]}", flush=True)
+              if key in creds:
+                  print(f"::add-mask::{creds[key]}", flush=True)
           path = os.path.join(os.environ["RUNNER_TEMP"], "gcp-user.json")
           with open(path, "w") as handle:
-              json.dump(
-                  {
-                      "type": "authorized_user",
-                      "client_id": data["client_id"],
-                      "client_secret": data["client_secret"],
-                      "refresh_token": data["refresh_token"],
-                      "rapt_token": data["rapt_token"],
-                      "quota_project_id": "sigma-matchmaker-dev",
-                  },
-                  handle,
-              )
+              json.dump(creds, handle)
           os.chmod(path, 0o600)
           with open(os.environ["GITHUB_ENV"], "a") as handle:
               handle.write(f"CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE={path}\n")
