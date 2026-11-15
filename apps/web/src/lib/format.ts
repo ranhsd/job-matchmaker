@@ -69,17 +69,9 @@ export const CATEGORIES: Record<MatchCategory, CategoryMeta> = {
     badge: "bg-accent-100 text-accent-700 ring-1 ring-accent-500/20",
     dot: "bg-accent-500",
   },
-  discover: {
-    label: "הזדמנות נוספת שכדאי להכיר",
-    shortLabel: "הזדמנות נוספת",
-    title: "אפשרויות שאולי לא חשבת עליהן",
-    description: "משרות בתחומים משיקים שבהם הניסיון והכישורים שלך עשויים להיות רלוונטיים.",
-    badge: "bg-highlight-100 text-highlight-700 ring-1 ring-highlight-300/60",
-    dot: "bg-highlight-600",
-  },
 };
 
-export const CATEGORY_ORDER: MatchCategory[] = ["strong", "possible", "discover"];
+export const CATEGORY_ORDER: MatchCategory[] = ["strong", "possible"];
 
 interface CheckMeta {
   label: string;

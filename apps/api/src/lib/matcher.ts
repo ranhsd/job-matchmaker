@@ -16,7 +16,7 @@ import { getOpenPositions, stripDetails } from "./merkava.js";
 import { truncate } from "./text.js";
 
 const SCORING_BATCH_SIZE = 8;
-const CATEGORY_ORDER: Record<MatchCategory, number> = { strong: 0, possible: 1, discover: 2 };
+const CATEGORY_ORDER: Record<MatchCategory, number> = { strong: 0, possible: 1 };
 
 export class MatchError extends Error {
   constructor(
@@ -49,9 +49,6 @@ const screeningSchema = z.object({
       z.object({
         id: z.number().int().describe("מזהה המשרה מהרשימה"),
         relevance: z.number().int().min(0).max(100),
-        kind: z
-          .enum(["direct", "adjacent"])
-          .describe("direct: משרה בתחום המקצועי של המועמד/ת. adjacent: תחום משיק שבו הכישורים עשויים להיות רלוונטיים"),
       }),
     )
     .describe("המשרות הרלוונטיות ביותר, ממוינות מהרלוונטית ביותר"),
@@ -62,10 +59,8 @@ const scoringSchema = z.object({
     z.object({
       id: z.number().int(),
       category: z
-        .enum(["strong", "possible", "discover", "none"])
-        .describe(
-          "strong: התאמה מקצועית גבוהה. possible: התאמה מקצועית אפשרית. discover: הזדמנות נוספת בתחום משיק. none: המשרה אינה רלוונטית",
-        ),
+        .enum(["strong", "possible", "none"])
+        .describe("strong: התאמה מקצועית גבוהה. possible: התאמה מקצועית אפשרית. none: המשרה אינה רלוונטית"),
       score: z.number().int().min(0).max(100).describe("עוצמת ההתאמה, לסידור המשרות בתוך הקטגוריה"),
       whyRelevant: z
         .string()
@@ -155,9 +150,9 @@ function catalogLine(p: PositionDetails, id: number): string {
     .join(" · ");
 }
 
-function positionBlock(p: PositionDetails, id: number, adjacent: boolean): string {
+function positionBlock(p: PositionDetails, id: number): string {
   return [
-    `### משרה [${id}]: ${p.tenderName}${adjacent ? " (נבחרה בסינון כתחום משיק)" : ""}`,
+    `### משרה [${id}]: ${p.tenderName}`,
     `משרד: ${p.officeName}${p.officeUnitName ? ` – ${p.officeUnitName}` : ""}`,
     `מיקום: ${p.locationName} (${p.area}) | סוג: ${p.publicationType} | דרגה: ${p.jobRating} ${p.rankFrom}-${p.rankTo} | ${p.level} | היקף: ${p.jobPercent}%`,
     `תיאור התפקיד:\n${truncate(p.description, 1500)}`,
@@ -189,27 +184,15 @@ async function extractProfile(cv: CvInput): Promise<Profile> {
   return output as Profile;
 }
 
-interface ShortlistItem {
-  id: number;
-  adjacent: boolean;
-}
-
-async function screenPositions(
-  profileText: string,
-  positions: PositionDetails[],
-  limit: number,
-): Promise<ShortlistItem[]> {
-  const adjacentSlots = Math.max(1, Math.round(limit / 3));
+async function screenPositions(profileText: string, positions: PositionDetails[], limit: number): Promise<number[]> {
   const catalog = positions.map((p, i) => catalogLine(p, i)).join("\n");
   const { output } = await generateText({
     model: getModel(env.model),
     system: SYSTEM_PROMPT,
     output: Output.object({ schema: screeningSchema }),
     prompt: `להלן פרופיל מועמד/ת ורשימה של ${positions.length} משרות פתוחות בשירות המדינה.
-בחר/י עד ${limit} משרות שכדאי למועמד/ת להכיר:
-- רוב המשרות (kind=direct): בתחום המקצועי של המועמד/ת, לפי השכלה, ניסיון, כישורים ודרישות סף.
-- עד ${adjacentSlots} משרות (kind=adjacent): בתחומים משיקים שהמועמד/ת אולי לא חשב/ה עליהם, שבהם הניסיון והכישורים עשויים להיות רלוונטיים (למשל ניהול פרויקטים, תכנון, בקרה, שירות, ניתוח נתונים).
-העדף/י משרות שהמועמד/ת עשוי/ה לעמוד בדרישות הסף שלהן. אל תבחר/י משרות שאין להן קשר ממשי לניסיון או לכישורים.
+בחר/י עד ${limit} משרות בתחום המקצועי של המועמד/ת, לפי השכלה, ניסיון, כישורים ודרישות סף.
+העדף/י משרות שהמועמד/ת עשוי/ה לעמוד בדרישות הסף שלהן. אל תבחר/י משרות בתחומים אחרים או משיקים, או משרות שאין להן קשר ממשי לניסיון או לכישורים.
 
 ## פרופיל המועמד/ת
 ${profileText}
@@ -219,30 +202,22 @@ ${catalog}`,
   });
 
   const seen = new Set<number>();
-  const candidates = (output as Screening).candidates
+  return (output as Screening).candidates
     .filter((c) => c.id >= 0 && c.id < positions.length && !seen.has(c.id) && seen.add(c.id))
-    .sort((a, b) => b.relevance - a.relevance);
-  const direct = candidates.filter((c) => c.kind === "direct");
-  const adjacent = candidates.filter((c) => c.kind === "adjacent");
-  const picked = adjacent.slice(0, adjacentSlots);
-  picked.push(...direct.slice(0, limit - picked.length));
-  picked.push(...adjacent.slice(adjacentSlots, adjacentSlots + limit - picked.length));
-  return picked.map((c) => ({ id: c.id, adjacent: c.kind === "adjacent" }));
+    .sort((a, b) => b.relevance - a.relevance)
+    .slice(0, limit)
+    .map((c) => c.id);
 }
 
-async function scoreBatch(
-  profileText: string,
-  batch: { id: number; position: PositionDetails; adjacent: boolean }[],
-): Promise<MatchResult[]> {
+async function scoreBatch(profileText: string, batch: { id: number; position: PositionDetails }[]): Promise<MatchResult[]> {
   const { output } = await generateText({
     model: getModel(env.scoringModel),
     system: SYSTEM_PROMPT,
     output: Output.object({ schema: scoringSchema }),
     prompt: `בחן/י את ההתאמה של המועמד/ת לכל אחת מהמשרות הבאות, וסווג/י כל משרה לאחת הקטגוריות:
 - strong (התאמה מקצועית גבוהה): המשרה בתחום המקצועי של המועמד/ת, הניסיון והכישורים רלוונטיים ישירות, ונמצא בקורות החיים מידע תומך לדרישות המרכזיות. אין פער מהותי.
-- possible (התאמה מקצועית אפשרית): יש ניסיון או כישורים רלוונטיים, אבל חלק מהדרישות לא מופיעות בבירור בקורות החיים, או שהניסיון רלוונטי רק בחלקו.
-- discover (הזדמנות נוספת שכדאי להכיר): המשרה בתחום אחר או משיק לתחום העיקרי של המועמד/ת, אבל כישורים שזוהו בקורות החיים עשויים להיות רלוונטיים גם לה.
-- none: אין קשר ממשי בין המשרה לניסיון ולכישורים. משרות אלה לא יוצגו.
+- possible (התאמה מקצועית אפשרית): המשרה בתחום המקצועי של המועמד/ת ויש ניסיון או כישורים רלוונטיים, אבל חלק מהדרישות לא מופיעות בבירור בקורות החיים, או שהניסיון רלוונטי רק בחלקו.
+- none: המשרה בתחום אחר או משיק לתחום המקצועי של המועמד/ת, או שאין קשר ממשי בין המשרה לניסיון ולכישורים. משרות אלה לא יוצגו.
 
 הנחיות:
 - whyRelevant: תקציר אישי וקצר בגוף שני, למשל: "התפקיד משלב תכנון תוכניות עבודה ובקרה. הניסיון שלך בניהול פרויקטים עשוי להיות רלוונטי לתחומי העיסוק האלה."
@@ -257,7 +232,7 @@ async function scoreBatch(
 ${profileText}
 
 ## משרות
-${batch.map(({ id, position, adjacent }) => positionBlock(position, id, adjacent)).join("\n\n")}`,
+${batch.map(({ id, position }) => positionBlock(position, id)).join("\n\n")}`,
   });
 
   const byId = new Map(batch.map((b) => [b.id, b.position]));
@@ -317,9 +292,9 @@ export async function* matchCv(cv: CvInput, filters: MatchFilters): AsyncGenerat
   const profileText = profileToText(profile, filters);
   const limit = env.shortlistSize;
 
-  let shortlist: ShortlistItem[];
+  let shortlist: number[];
   if (positions.length <= limit) {
-    shortlist = positions.map((_, id) => ({ id, adjacent: false }));
+    shortlist = positions.map((_, id) => id);
   } else {
     yield {
       type: "stage",
@@ -339,7 +314,7 @@ export async function* matchCv(cv: CvInput, filters: MatchFilters): AsyncGenerat
     stage: "scoring",
     message: `מדרג ${shortlist.length} משרות מתאימות לעומק…`,
   };
-  const items = shortlist.map(({ id, adjacent }) => ({ id, adjacent, position: positions[id]! }));
+  const items = shortlist.map((id) => ({ id, position: positions[id]! }));
   const batches: (typeof items)[] = [];
   for (let i = 0; i < items.length; i += SCORING_BATCH_SIZE) {
     batches.push(items.slice(i, i + SCORING_BATCH_SIZE));

@@ -68,9 +68,8 @@ export interface CandidateProfile {
 /**
  * - `strong`: high professional fit to the experience and skills in the CV
  * - `possible`: a possible fit, with requirements worth checking
- * - `discover`: an adjacent field where the candidate's skills may be relevant
  */
-export type MatchCategory = "strong" | "possible" | "discover";
+export type MatchCategory = "strong" | "possible";
 
 /**
  * - `supported`: the CV supports the requirement
